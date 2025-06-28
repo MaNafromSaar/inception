@@ -118,242 +118,137 @@ This project involves setting up a multi-container Docker application using Dock
 *   [ ] Does the initialization script correctly set up the database and users using environment variables?
 *   [ ] Is the MariaDB service correctly defined in `docker-compose.yml`?
 *   [ ] Are environment variables for MariaDB set in `.env`?
-*   [ ] Can the MariaDB container start without errors?
-*   [ ] Is data persisting in the volume after container restarts?
-*   [ ] Can you successfully connect to the database with the created user?
+*   [ ] Does the MariaDB container build and run without errors?
+*   [ ] Can you connect to the database from another container (e.g., a temporary admin tool)?
+*   [ ] Does the database persist data after a container restart (`docker-compose down` and `docker-compose up`)?
 
 ---
 
 ## III. Phase 3: WordPress Service
 
-**Goal:** Create a working WordPress container that connects to MariaDB and serves WordPress files via php-fpm.
+**Goal:** Create a working WordPress container that connects to the MariaDB service.
 
 **Steps:**
 
 1.  **Write `srcs/requirements/wordpress/Dockerfile`:**
-    *   Use penultimate stable Alpine or Debian.
-    *   Install PHP, php-fpm, and required PHP extensions for WordPress (e.g., `mysqli`, `gd`, `curl`).
-    *   Download WordPress (specific version, not latest) using `curl` or `wget` and extract it.
-    *   Copy WordPress files to the appropriate location (e.g., `/var/www/html`).
-    *   Configure php-fpm to listen on a port (e.g., 9000).
-    *   Copy entrypoint/configuration scripts from `tools/`.
-    *   Set correct permissions for WordPress files.
+    *   Use a stable PHP-FPM base image (e.g., `php:fpm-alpine`).
+    *   Install necessary PHP extensions for WordPress (e.g., `mysqli`, `gd`, `curl`).
+    *   Install `wp-cli` for command-line management.
+    *   Copy configuration scripts from `tools/`.
+    *   Set up a user and working directory.
+    *   Define `CMD` or `ENTRYPOINT` to start PHP-FPM and run configuration scripts.
 
-2.  **Create Configuration Scripts (`srcs/requirements/wordpress/tools/configure_wp.sh` or similar):**
+2.  **Create Configuration Scripts (`srcs/requirements/wordpress/tools/configure_wp.sh`):**
     *   Script to:
-        *   Wait for MariaDB to be available (e.g., using `nc` or a custom script).
-        *   Create `wp-config.php` from `wp-config-sample.php` or use `wp-cli`.
-        *   Populate `wp-config.php` with database details from environment variables (`DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`).
-        *   Set WordPress salts (can be generated or static, but should be from env vars or secrets).
-        *   `ENTRYPOINT` or `CMD` should start php-fpm in the foreground.
+        *   Wait for the MariaDB service to be available.
+        *   Download and configure `wp-config.php` using `wp-cli` or `sed` commands, populating it with database details from environment variables.
+        *   Handle initial WordPress installation if desired (e.g., `wp core install`).
 
 3.  **Update `srcs/docker-compose.yml` for WordPress:**
     *   `build`: context `./requirements/wordpress`
     *   `container_name`: `wordpress`
     *   `image`: `wordpress`
     *   `env_file`: `./.env`
-    *   `depends_on`: `mariadb`
-    *   `volumes`: Define a volume for WordPress files (`/var/www/html`) (e.g., `wp_files:/var/www/html`).
+    *   `volumes`: Define a volume for `/var/www/html` (e.g., `wp_files:/var/www/html`).
     *   `networks`: Connect to the custom Docker network.
+    *   `depends_on`: `mariadb`.
     *   `restart: always`.
 
 4.  **Update `srcs/.env`:**
-    *   Add/verify WordPress related variables if any (e.g., `WP_DB_HOST=mariadb`).
-    *   `DB_NAME` should be `${MYSQL_DATABASE}`.
-    *   `DB_USER` should be `${MYSQL_USER}`.
-    *   `DB_PASSWORD` should be `${MYSQL_PASSWORD}`.
-
-5.  **Update `Makefile`:**
-    *   Ensure `all` target builds WordPress.
-
-**Connecting & Testing WordPress:**
-
-*   **Build & Run:** `docker-compose -f srcs/docker-compose.yml up --build -d wordpress` (will also start MariaDB).
-*   **Check Containers:** `docker ps` (are `wordpress` and `mariadb` running?).
-*   **Check WordPress Logs:** `docker logs wordpress` (look for php-fpm startup, connection to DB, any errors).
-*   **Check MariaDB Logs:** `docker logs mariadb` (see if WordPress is making connections).
-*   **Verify `wp-config.php`:** `docker exec -it wordpress cat /var/www/html/wp-config.php` (check if DB details are correct).
-*   **Check php-fpm:** `docker exec -it wordpress ps aux | grep php-fpm` (is it running?).
+    *   Add WordPress-specific variables if needed (e.g., `WP_ADMIN_USER`, `WP_ADMIN_PASSWORD`).
 
 **Checking Questions & Milestones:**
 
-*   [ ] Is the WordPress Dockerfile complete and building successfully?
-*   [ ] Does the configuration script correctly set up `wp-config.php` and wait for MariaDB?
-*   [ ] Is the WordPress service correctly defined in `docker-compose.yml` with dependency on MariaDB?
-*   [ ] Can the WordPress container start without errors?
-*   [ ] Does WordPress successfully connect to the MariaDB container? (Check logs).
-*   [ ] Are WordPress files persisting in the volume?
+*   [ ] Does the WordPress container build and run?
+*   [ ] Does it successfully connect to the MariaDB container?
+*   [ ] Can you access the WordPress installation screen through a browser (via Nginx later)?
+*   [ ] Do WordPress files persist after a container restart?
 
 ---
 
 ## IV. Phase 4: Nginx Service
 
-**Goal:** Set up Nginx as a reverse proxy to serve WordPress over HTTPS (TLSv1.2/1.3 only) on your custom domain.
+**Goal:** Set up Nginx as a reverse proxy to serve the WordPress site over HTTPS.
 
 **Steps:**
 
 1.  **Write `srcs/requirements/nginx/Dockerfile`:**
-    *   Use penultimate stable Alpine or Debian.
-    *   Install Nginx.
-    *   Remove default Nginx configuration.
-    *   Copy your custom Nginx configuration from `conf/`.
-    *   Copy SSL certificate and key into the image (generate these next).
+    *   Use a stable Nginx base image (e.g., `nginx:alpine`).
+    *   Copy the Nginx configuration file from `conf/`.
+    *   Copy SSL certificate and key generation scripts from `tools/`.
     *   Expose port 443.
-    *   `CMD` to start Nginx in the foreground (`nginx -g \'daemon off;\'`).
 
-2.  **Generate SSL Certificate:**
-    *   Create self-signed SSL certificate and private key for `yourlogin.42.fr`.
-    *   Use OpenSSL. Store these in a secure location (e.g., `secrets/` or `srcs/requirements/nginx/conf/ssl/`) and ensure they are copied into the Nginx image.
-    *   **Example (OpenSSL):**
-        ```bash
-        # In your VM or a temp location
-        openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-        -keyout yourlogin.42.fr.key -out yourlogin.42.fr.crt \
-        -subj "/C=FR/ST=Paris/L=Paris/O=42/OU=student/CN=yourlogin.42.fr"
-        ```
-    *   Place these files where the Nginx Dockerfile can copy them.
+2.  **Create Nginx Configuration (`srcs/requirements/nginx/conf/nginx.conf`):**
+    *   Define a server block for your domain (`${DOMAIN_NAME}`).
+    *   Listen on port 443 for SSL.
+    *   Configure SSL with your generated certificate and key.
+    *   Set up a `location` block to pass PHP requests to the WordPress container (e.g., `fastcgi_pass wordpress:9000`).
+    *   Include standard security headers and performance optimizations.
 
-3.  **Create Nginx Configuration (`srcs/requirements/nginx/conf/nginx.conf` or `default.conf`):**
-    *   Listen on port 443 ssl.
-    *   Specify `ssl_certificate` and `ssl_certificate_key` paths (inside the container).
-    *   Configure `ssl_protocols TLSv1.2 TLSv1.3;`.
-    *   Configure `ssl_ciphers` (use strong ciphers).
-    *   Server name: `yourlogin.42.fr`.
-    *   Location block `/` to proxy requests to WordPress:
-        *   `proxy_pass http://wordpress:9000;` (or the port php-fpm is listening on in the WordPress container).
-        *   Set necessary proxy headers (`Host`, `X-Real-IP`, `X-Forwarded-For`, `X-Forwarded-Proto`).
-    *   Handle static files if needed (though WordPress usually handles its own).
+3.  **Create SSL Generation Script (`srcs/requirements/nginx/tools/generate_ssl.sh`):**
+    *   Use `openssl` to generate a self-signed SSL certificate and private key.
+    *   The script should place the certificate and key in a location that the Nginx configuration expects.
 
 4.  **Update `srcs/docker-compose.yml` for Nginx:**
     *   `build`: context `./requirements/nginx`
     *   `container_name`: `nginx`
     *   `image`: `nginx`
-    *   `env_file`: `./.env` (if `DOMAIN_NAME` is used in Nginx conf via envsubst, or for cert generation)
-    *   `depends_on`: `wordpress`
-    *   `ports`: `443:443`
+    *   `env_file`: `./.env`
+    *   `ports`: Map host port 443 to container port 443 (`443:443`).
     *   `networks`: Connect to the custom Docker network.
+    *   `depends_on`: `wordpress`.
     *   `restart: always`.
-
-5.  **Update `srcs/.env`:**
-    *   `DOMAIN_NAME=yourlogin.42.fr` (replace `yourlogin`).
-
-6.  **Update `Makefile`:**
-    *   Ensure `all` target builds Nginx.
-
-**Connecting & Testing Nginx:**
-
-*   **Build & Run All:** `make all` or `docker-compose -f srcs/docker-compose.yml up --build -d`.
-*   **Check Containers:** `docker ps` (are `nginx`, `wordpress`, `mariadb` running?).
-*   **Check Nginx Logs:** `docker logs nginx` (look for startup, SSL errors, request logs).
-*   **Domain Setup (Host VM):** Edit `/etc/hosts` on your VM: `127.0.0.1 yourlogin.42.fr`.
-*   **Access in Browser:** Open `https://yourlogin.42.fr`.
-    *   Accept self-signed certificate warning.
-    *   You should see the WordPress setup page or your site.
-*   **Check TLS Version:** Use browser developer tools (Security tab) or `openssl s_client -connect yourlogin.42.fr:443 -tls1_2` (and for 1.3).
 
 **Checking Questions & Milestones:**
 
-*   [ ] Is the Nginx Dockerfile complete and building successfully?
-*   [ ] Are SSL certificate and key generated and correctly copied/used by Nginx?
-*   [ ] Is the Nginx configuration correctly proxying to WordPress and enforcing TLSv1.2/1.3?
-*   [ ] Is the Nginx service defined in `docker-compose.yml` with port mapping and dependency?
-*   [ ] Is `DOMAIN_NAME` set in `.env` and `/etc/hosts` configured on the VM?
-*   [ ] Can you access the WordPress site via `https://yourlogin.42.fr`?
-*   [ ] Is TLSv1.2 or TLSv1.3 being used?
+*   [ ] Does the Nginx container build and run?
+*   [ ] Can you access `https://your.domain.name` in a browser and see the WordPress site?
+*   [ ] Is the connection secure (using your self-signed certificate)?
 
 ---
 
-## V. Phase 5: Integration, Domain, Security & Final Checks
+## V. Phase 5: Finalization & Documentation
 
-**Goal:** Ensure all components work together seamlessly, meet all project requirements, and security best practices are followed.
+**Goal:** Ensure the project is robust, well-documented, and meets all subject requirements.
 
 **Steps:**
 
-1.  **Complete `Makefile`:**
-    *   `all`: `docker-compose -f srcs/docker-compose.yml up --build -d`
-    *   `down`: `docker-compose -f srcs/docker-compose.yml down`
-    *   `clean`: `docker-compose -f srcs/docker-compose.yml down -v --rmi local --remove-orphans` (removes volumes, images built locally for the project)
-    *   `fclean`: `$(MAKE) clean && docker system prune -af --volumes && docker network rm $(shell docker network ls -q -f name=YOUR_NETWORK_NAME)` (more aggressive, be careful. Get network name from `docker-compose.yml`).
-    *   `re`: `$(MAKE) fclean && $(MAKE) all`
+1.  **Healthchecks:**
+    *   Add `HEALTHCHECK` instructions to the Dockerfiles (e.g., `mysqladmin ping` for MariaDB) or `healthcheck` blocks in `docker-compose.yml`.
+    *   Update `depends_on` to use `condition: service_healthy` to ensure proper startup order.
 
-2.  **WordPress Installation & User Setup:**
-    *   Complete the WordPress installation via the browser at `https://yourlogin.42.fr`.
-    *   Create two users in WordPress: one administrator (username must NOT be admin, Admin, administrator, etc.) and one regular user.
+2.  **Makefile Polish:**
+    *   Ensure `clean` and `fclean` correctly remove all containers, networks, and volumes.
+    *   Add helper targets like `logs`, `status`, etc.
 
-3.  **Volume Mapping Verification:**
-    *   Ensure WordPress database volume (`db_data`) and WordPress website files volume (`wp_files`) are correctly mapped to `/home/yourlogin/data/` on the host VM.
-    *   **In `docker-compose.yml`:**
-        ```yaml
-        volumes:
-          db_data:
-            driver_opts:
-              type: none
-              o: bind
-              device: /home/YOUR_LOGIN/data/mariadb # Or whatever you name the subfolder
-          wp_files:
-            driver_opts:
-              type: none
-              o: bind
-              device: /home/YOUR_LOGIN/data/wordpress # Or whatever you name the subfolder
-        ```
-    *   **Important:** Replace `YOUR_LOGIN` with your actual login. Create these directories on your VM first (`mkdir -p /home/YOUR_LOGIN/data/mariadb /home/YOUR_LOGIN/data/wordpress`).
+3.  **Documentation:**
+    *   Write a comprehensive `README.md` explaining the project, how to set it up, and how to use the `Makefile`.
+    *   Ensure all environment variables are documented in a `.env.example` file.
 
-4.  **Security & Best Practices Review:**
-    *   **No Passwords in Dockerfiles:** Double-check.
-    *   **Environment Variables:** All sensitive data (passwords, API keys, domain names) from `.env`.
-    *   **Docker Secrets (Recommended):** If implemented, verify.
-    *   **PID 1 & Daemons:** Ensure services run correctly as main process. No `tail -f /dev/null` or `sleep infinity`.
-    *   **Restart Policy:** `restart: always` or `unless-stopped` for all services.
-    *   **Network:** Custom network used. No `network: host` or `links:`.
-    *   **Image Tags:** No `latest` tag for base images. Use specific penultimate stable versions.
-    *   **Container Names:** Match service names.
-    *   **.gitignore:** Ensure `srcs/.env`, `secrets/` (if containing actual secrets), and host volume data paths are gitignored.
+4.  **Security & Evaluation:**
+    *   **Requirement:** Plan how to securely transmit secrets (the `.env` file) to evaluators.
+    *   **Strategy:** Use a one-time secret sharing service (e.g., onetimesecret.com) to generate single-use links for the `.env` content. This avoids committing secrets to Git while ensuring evaluators have the exact configuration.
 
-**Final Checking Questions & Milestones:**
+5.  **Final Review:**
+    *   Read through the project subject (`inceptionsubject.txt`) one last time.
+    *   Check all requirements: container names, image names must match service names, use of `restart: always`, volume paths, etc.
+    *   Ensure no secrets are hardcoded or committed to Git.
 
-*   [ ] Is the `Makefile` complete with all required targets?
-*   [ ] Can you successfully install WordPress and create the required users?
-*   [ ] Are volumes correctly mapped to `/home/yourlogin/data/...` on the VM and persisting data?
-*   [ ] Are all security requirements from `inceptionsubject.txt` met?
-    *   [ ] Nginx is sole entry point on port 443.
-    *   [ ] TLSv1.2/TLSv1.3 only.
-    *   [ ] Passwords not in Dockerfiles.
-    *   [ ] Environment variables used for configuration.
-*   [ ] Do containers restart automatically on crash?
-*   [ ] Are all Dockerfile best practices followed (PID 1, no hacky loops)?
-*   [ ] Is the entire application stack stable and functional?
+**Checking Questions & Milestones:**
+
+*   [ ] Are all services healthy and starting in the correct order?
+*   [ ] Is the `Makefile` complete and working as expected?
+*   [ ] Is the `README.md` clear and comprehensive?
+*   [ ] Is there a `.env.example` file?
+*   [ ] Is the plan for handling secrets during evaluation documented and ready?
+*   [ ] Does the project meet every single requirement from the subject PDF?
 
 ---
 
-## VI. Phase 6: Bonus Part (Optional)
+## VI. Bonus Features (Optional)
 
-**Goal:** Implement additional services as per the bonus list, each in its own Docker container with its own Dockerfile.
-
-*   **Redis Cache for WordPress:**
-    *   Dockerfile for Redis.
-    *   Configure WordPress (plugin like "Redis Object Cache") to use it.
-    *   Add to `docker-compose.yml`.
-*   **FTP Server:**
-    *   Dockerfile for FTP server (e.g., vsftpd).
-    *   Point to WordPress files volume.
-    *   Add to `docker-compose.yml`.
-*   **Simple Static Website (Not PHP):**
-    *   Create site (HTML, CSS, JS).
-    *   Dockerfile for a web server (e.g., another Nginx, Caddy) to serve it.
-    *   Configure main Nginx to route to it (e.g., on a subpath or different port if allowed for bonus).
-    *   Add to `docker-compose.yml`.
-*   **Adminer:**
-    *   Dockerfile for Adminer.
-    *   Configure to connect to MariaDB.
-    *   Add to `docker-compose.yml`.
-*   **Service of Choice:**
-    *   Implement and justify.
-
-**Checking Questions for Bonus:**
-*   [ ] Is each bonus service in its own container with its own Dockerfile?
-*   [ ] Does each bonus service function correctly?
-*   [ ] Is the mandatory part still perfect?
-
----
-This roadmap provides a detailed plan. We will tackle each phase step-by-step.
-Remember to replace `yourlogin` or `YOUR_LOGIN` with your actual 42 login throughout the project.
+*   **Redis:** Add a Redis container for caching.
+*   **FTP Server:** Add an FTP server container for file transfers.
+*   **Adminer/phpMyAdmin:** Add a database administration tool.
+*   **Static Website:** Add a container for a simple static website.
+*   **Portainer:** Add a container for Docker management.

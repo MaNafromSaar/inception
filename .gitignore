@@ -1,5 +1,5 @@
 # Ignore environment files with sensitive credentials
-srcs/.env
+# srcs/.env
 
 # Ignore local data volumes
 /data/

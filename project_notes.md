@@ -64,4 +64,14 @@ This document tracks the key challenges and solutions encountered during the set
     3.  **Nginx Healthcheck:** A basic `healthcheck` was added to the `nginx` service in `docker-compose.yml` to ensure the Nginx process is running.
     4.  **Startup Order (`depends_on`):** The `docker-compose.yml` was updated to use `depends_on` with `condition: service_healthy`. This ensures that MariaDB becomes fully healthy before the WordPress service starts, and WordPress is healthy before the Nginx service starts. This eliminates the race conditions and makes the stack startup reliable.
 
+## 7. Handling Secrets for Evaluation
+
+*   **Requirement:** Provide the project's secrets (the contents of the `.env` file) to evaluators securely, without committing them to the Git repository.
+*   **Chosen Strategy:** Use a one-time secret sharing service.
+*   **Action Plan:**
+    1.  The full, working content of the `srcs/.env` file will be pasted into a secure secret sharing tool (e.g., onetimesecret.com).
+    2.  Three separate, single-use links will be generated.
+    3.  These links will be provided to the evaluators. Each link is destroyed automatically after being viewed once.
+*   **Contingency:** This method serves as a convenient way to ensure the evaluator has the exact working configuration. The primary method, documented in the `README.md`, is for the evaluator to create their own `.env` file from the provided `.env.example`.
+
 After applying these fixes and rebuilding the containers with `make all`, the `wordpress` container was able to successfully connect to the `mariadb` container, resolving the final major setup issue.
