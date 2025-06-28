@@ -47,10 +47,15 @@ RUN apt-get update && \
     curl \
     tar \
     netcat-traditional \
+    sudo \
     # For wp-cli if you choose to use it
     # wget \
     # less \
     && rm -rf /var/lib/apt/lists/*
+
+# Install wp-cli (WordPress Command Line Interface)
+RUN curl -o /usr/local/bin/wp -SL https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
+    && chmod +x /usr/local/bin/wp
 
 # Download and extract WordPress
 RUN set -eux; \

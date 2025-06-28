@@ -53,7 +53,40 @@ else
     echo "wp-config.php configured."
 fi
 
+# Check if WordPress is already installed. We check for the existence of the user.
+# The `wp user get` command will fail if the user doesn't exist, and `set -e` will stop the script.
+if sudo -u www-data wp core is-installed --path=${WORDPRESS_PATH} > /dev/null 2>&1; then
+    echo "WordPress is already installed. Skipping installation."
+else
+    echo "WordPress is not installed. Starting installation..."
+
+    # Install WordPress using wp-cli
+    # The --allow-root flag is often needed when running in Docker containers
+    sudo -u www-data wp core install \
+        --path=${WORDPRESS_PATH} \
+        --url=${WP_SITE_URL} \
+        --title="${WP_SITE_TITLE}" \
+        --admin_user=${WP_ADMIN_USER} \
+        --admin_password=${WP_ADMIN_PASSWORD} \
+        --admin_email=${WP_ADMIN_EMAIL}
+
+    echo "WordPress core installed."
+
+    # Create the second user
+    sudo -u www-data wp user create \
+        --path=${WORDPRESS_PATH} \
+        ${WP_USER_USER} \
+        ${WP_USER_EMAIL} \
+        --role=author \
+        --user_pass=${WP_USER_PASSWORD}
+
+    echo "Second WordPress user created."
+
+    echo "WordPress installation complete."
+fi
+
 # Ensure correct ownership of all WordPress files
+# This is important after wp-cli commands
 # This might be redundant if Dockerfile already does it, but good for safety
 chown -R www-data:www-data ${WORDPRESS_PATH}
 

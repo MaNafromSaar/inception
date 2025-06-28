@@ -4,15 +4,21 @@
 # Use the current user's login name automatically for portability.
 LOGIN ?= $(shell whoami)
 
-# Use docker compose (with a space), the modern command.
-# We also prepend LOGIN=$(LOGIN) to ensure the variable is available for docker-compose.
-COMPOSE = LOGIN=$(LOGIN) docker compose
+# --- Compose Configuration ---
+# This Makefile supports two modes for volume management:
+# 1. default (Docker-managed volumes): Portable, works well on WSL2. Run with `make`.
+# 2. host (Host-bind mounts): Uses /home/$(LOGIN)/data, as per the 42 subject. Run with `make up-host` or by adding `MODE=host` to any command.
 
-COMPOSE_FILE = srcs/docker-compose.yml
-ENV_FILE = srcs/.env
+COMPOSE_BASE = LOGIN=$(LOGIN) docker compose -f srcs/docker-compose.yml --env-file srcs/.env
 
-# Define data directories based on the current user's home.
-# This ensures it works for any user (e.g., 'inception' on the VM, or your local user).
+# Conditionally add the host override file if MODE=host
+ifeq ($(MODE),host)
+	COMPOSE = $(COMPOSE_BASE) -f srcs/docker-compose.host.yml
+else
+	COMPOSE = $(COMPOSE_BASE)
+endif
+
+# Define data directories for the host mode.
 DATA_DIR = /home/$(LOGIN)/data
 WP_DATA_DIR = $(DATA_DIR)/wordpress
 DB_DATA_DIR = $(DATA_DIR)/mariadb
@@ -26,14 +32,19 @@ NC=\033[0m # No Color
 
 # --- Rules ---
 
-# Default target: Set up and run everything.
+# Default target: Set up and run everything with Docker-managed volumes.
 all: up
 
-# The main 'up' command to build and start services.
-up: dirs-check env-check
-	@echo "$(BLUE)Building and starting all services...$(NC)"
-	@$(COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) up --build -d
-	@echo "$(GREEN)All services started. You can check the status with 'make status'.$(NC)"
+# Build and start with Docker-managed volumes (default).
+up: env-check
+	@echo "$(BLUE)Building and starting services with Docker-managed volumes...$(NC)"
+	@$(COMPOSE) up --build -d
+	@echo "$(GREEN)Services started. Use 'make status' to check them.$(NC)"
+
+# Build and start with host-bind mounts (42 subject compliant).
+up-host: export MODE=host
+up-host: dirs-check up
+	@echo "$(GREEN)Services started with host-bind mounts in $(DATA_DIR).$(NC)"
 
 # Check for .env file. If it doesn't exist, copy from the example.
 # This no longer causes make to exit, allowing the process to continue.
@@ -44,40 +55,48 @@ env-check:
 		echo "$(GREEN)Successfully created $(ENV_FILE). You may want to customize it later.$(NC)"; \
 	fi
 
-# Check if data directories exist and create them if needed.
+# Check if data directories exist (only needed for host mode).
 dirs-check:
-	@echo "$(BLUE)Checking data directories...$(NC)"
-	@if [ ! -d $(WP_DATA_DIR) ]; then \
-		echo "$(YELLOW)Creating WordPress data directory: $(WP_DATA_DIR)$(NC)"; \
-		mkdir -p $(WP_DATA_DIR); \
-	fi
-	@if [ ! -d $(DB_DATA_DIR) ]; then \
-		echo "$(YELLOW)Creating MariaDB data directory: $(DB_DATA_DIR)$(NC)"; \
-		mkdir -p $(DB_DATA_DIR); \
-	fi
-	@echo "$(GREEN)All data directories are ready.$(NC)"
+	@echo "$(BLUE)Checking host data directories for MODE=host...$(NC)"
+	@mkdir -p $(WP_DATA_DIR)
+	@mkdir -p $(DB_DATA_DIR)
+	@echo "$(GREEN)Host data directories are ready.$(NC)"
 
 # Stop all services
 down: ## Stop and remove containers, networks, and volumes
-	@echo "Stopping and removing all services, networks, and volumes..."
-	@$(COMPOSE) -f $(COMPOSE_FILE) down -v
+	@echo "$(YELLOW)Stopping all services, networks, and volumes...$(NC)"
+	@echo "$(YELLOW)Note: This will remove Docker-managed volumes if you are not in host mode.$(NC)"
+	@$(COMPOSE) down -v
 
 # Clean: Stop and remove containers, networks, and volumes defined in compose
 clean:
-	@echo "$(BLUE)Cleaning containers, networks, and volumes...$(NC)"
-	@$(COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) down -v --remove-orphans
-	@echo "$(GREEN)Cleaned containers, networks, and volumes.$(NC)"
+	@echo "$(BLUE)Cleaning containers and networks...$(NC)"
+	@$(COMPOSE) down -v --remove-orphans
+	@echo "$(GREEN)Cleaned containers and networks.$(NC)"
 
 # Fclean: Clean + remove images built by compose + prune system
+# In host mode, this will also offer to remove the host data directories.
 fclean: clean
 	@echo "$(BLUE)Removing images built by compose...$(NC)"
-	@$(COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) down --rmi all
+	@$(COMPOSE) down --rmi all
 	@echo "$(BLUE)Pruning Docker system...$(NC)"
 	@docker system prune -af
+	@if [ "$(MODE)" = "host" ]; then \
+		echo "$(YELLOW)MODE is host. Do you want to remove the host data directories? [y/N] $(NC)"; \
+		read -r answer; \
+		if [ "$$answer" = "y" ]; then \
+			echo "$(RED)Removing $(DATA_DIR)...$(NC)"; \
+			rm -rf $(DATA_DIR); \
+		fi; \
+	fi
 	@echo "$(GREEN)Full cleanup completed.$(NC)"
 
-# Re: Full rebuild and restart
-re: fclean all ## Rebuild everything from scratch
+# Re: Full rebuild and restart (default mode)
+re: fclean up
+
+# Re-host: Full rebuild and restart in host mode
+re-host: export MODE=host
+re-host: fclean up-host
 
 # Status check
 status:
@@ -86,16 +105,16 @@ status:
 
 # Individual service controls
 logs:
-	@$(COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) logs -f
+	@$(COMPOSE) logs -f
 
 logs-nginx:
-	@$(COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) logs -f nginx
+	@$(COMPOSE) logs -f nginx
 
 logs-wordpress:
-	@$(COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) logs -f wordpress
+	@$(COMPOSE) logs -f wordpress
 
 logs-mariadb:
-	@$(COMPOSE) -f $(COMPOSE_FILE) --env-file $(ENV_FILE) logs -f mariadb
+	@$(COMPOSE) logs -f mariadb
 
 # Test connectivity - checks if all services are properly connected
 test:
@@ -109,4 +128,4 @@ ssl:
 	@./srcs/requirements/nginx/tools/generate_ssl.sh
 	@echo "$(GREEN)SSL certificate generated.$(NC)"
 
-.PHONY: all up down clean fclean re logs logs-nginx logs-wordpress logs-mariadb env-check dirs-check status test ssl
+.PHONY: all up up-host down clean fclean re re-host logs logs-nginx logs-wordpress logs-mariadb env-check dirs-check status test ssl
