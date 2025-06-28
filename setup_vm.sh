@@ -52,11 +52,25 @@ apt-get update
 apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 echo "Docker Engine installation complete."
 
+# --- Add user to the docker group ---
+echo "
+Step 5: Adding user '$regular_user' to the docker group..."
+if id "$regular_user" &>/dev/null; then
+    usermod -aG docker $regular_user
+    echo "User '$regular_user' added to the docker group. They will need to log out and log back in for it to take effect."
+else
+    echo "Warning: User '$regular_user' not found. Skipping docker group addition."
+fi
+
 # --- Final Instructions ---
-echo "\n-------------------------------------------------"
+echo "
+-------------------------------------------------"
 echo "✅ VM Setup is Complete!"
 echo "-------------------------------------------------"
 echo "Next steps for the user '$regular_user':"
-echo "1. Log out and log back in to apply sudo permissions."
-echo "2. Clone the project repository."
-echo "3. Run 'make' inside the project directory."
+echo "1. IMPORTANT: Log out of your session and log back in to apply group permissions (sudo and docker)."
+echo "2. Clone your project repository into your user's home directory."
+echo "3. Navigate into your project directory: cd <project_folder>"
+echo "4. Create your .env file from the example: cp srcs/.env.example srcs/.env"
+echo "5. Edit the 'srcs/.env' file and fill in your secrets."
+echo "6. Run 'make' to build and start the services. If you have issues with old containers, run 'make down && make'."
