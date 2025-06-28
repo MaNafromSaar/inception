@@ -3,9 +3,9 @@ FROM debian:bullseye-slim
 
 # Environment variables (can be overridden by docker-compose)
 # DOMAIN_NAME will be sourced from .env by docker-compose and used by entrypoint script
-# ENV DOMAIN_NAME=yourlogin.42.fr # No need to set it here if entrypoint handles it from .env
+# ENV DOMAIN_NAME=mnaumann.42.fr # No need to set it here if entrypoint handles it from .env
 
-LABEL maintainer="yourlogin@student.42.fr" \
+LABEL maintainer="mnaumann@student.42.fr" \
       project="Inception - Nginx"
 
 # Install Nginx and OpenSSL (for cert generation if done in container, or for `openssl` tool)

@@ -26,7 +26,7 @@ ENV NONCE_SALT=changeme
 
 RUN apt-get update && apt-get install -y netcat procps && rm -rf /var/lib/apt/lists/*
 
-LABEL maintainer="yourlogin@student.42.fr" \
+LABEL maintainer="mnaumann@student.42.fr" \
       project="Inception - WordPress"
 
 # PHP version for Debian Bullseye is typically 7.4

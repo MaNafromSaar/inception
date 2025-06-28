@@ -74,4 +74,26 @@ This document tracks the key challenges and solutions encountered during the set
     3.  These links will be provided to the evaluators. Each link is destroyed automatically after being viewed once.
 *   **Contingency:** This method serves as a convenient way to ensure the evaluator has the exact working configuration. The primary method, documented in the `README.md`, is for the evaluator to create their own `.env` file from the provided `.env.example`.
 
+## Debugging Journey & Key Learnings (June 28, 2025)
+
+Setting up a multi-container Docker environment via Makefiles and Compose files is a meticulous process where small details can lead to cascading failures. The final debugging session to get the stack fully operational was a perfect example of this.
+
+Here's a summary of the issues we resolved and the key takeaways:
+
+1.  **Nginx Restart Loop:**
+    *   **Symptom:** `make status` showed Nginx in a `restarting` state.
+    *   **Cause:** The Nginx entrypoint script was failing to substitute the `${DOMAIN_NAME}` variable correctly, leading to Nginx trying to load a certificate with a placeholder name (`yourlogin.42.fr.crt`) instead of the actual one.
+    *   **Fix:** We corrected the `nginx.conf` to use the `${DOMAIN_NAME}` variable syntax properly and simplified the entrypoint script to perform a more robust substitution.
+
+2.  **WordPress Database Connection Error:**
+    *   **Symptom:** After fixing Nginx, the WordPress site loaded but showed "Error establishing a database connection."
+    *   **Cause:** The MariaDB logs revealed the root problem: our custom `init_db.sh` script, which creates the WordPress database and user, was never being executed. The container was starting, but the database was empty.
+
+3.  **The Stubborn MariaDB Initialization Failure (The Real Culprit):**
+    *   **Attempt 1 (Missing Entrypoint):** We first discovered the `mariadb/Dockerfile` was missing the `ENTRYPOINT ["/usr/local/bin/init_db.sh"]` instruction. We added it.
+    *   **Attempt 2 (Stale Volumes):** After adding the entrypoint, the script *still* didn't run. This was because a stale, persistent Docker volume from a previous failed run already existed. The entrypoint script is designed not to run if the database directory isn't empty. The `make fclean` and `docker volume rm srcs_db_data` commands were used to ensure a clean slate.
+    *   **Attempt 3 (Ambiguous Image Names):** The final, most subtle issue was that our custom-built image was named `mariadb` in the `docker-compose.yml`. This is the same name as the official Docker Hub image. Docker was likely using a cached, official version of the image instead of our newly built one. Renaming our images to `inception-mariadb`, `inception-wordpress`, and `inception-nginx` in the `docker-compose.yml` file removed this ambiguity and was the final key to solving the problem.
+
+**Final Lesson:** For complex Docker builds, always use **unique, specific image names** and have a **robust cleaning process** (`make fclean`) that removes not just containers but also volumes and images to guarantee a truly fresh start.
+
 After applying these fixes and rebuilding the containers with `make all`, the `wordpress` container was able to successfully connect to the `mariadb` container, resolving the final major setup issue.

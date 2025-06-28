@@ -32,19 +32,9 @@ RUN chmod +x /usr/local/bin/init_db.sh
 COPY ./conf/my.cnf /etc/mysql/conf.d/my.cnf
 RUN chmod 644 /etc/mysql/conf.d/my.cnf
 
-# Expose MariaDB port (within Docker network, not necessarily to host)
-EXPOSE 3306
-
-# Volume for MariaDB data
-VOLUME /var/lib/mysql
-
-# Healthcheck to ensure MariaDB is ready for connections
-HEALTHCHECK --interval=15s --timeout=5s --retries=3 CMD mysqladmin ping -h localhost --silent
-
-# Entrypoint script will handle initialization and starting MariaDB
+# Set the entrypoint to our custom initialization script
 ENTRYPOINT ["/usr/local/bin/init_db.sh"]
 
-# Default command if entrypoint is a wrapper
-# For MariaDB 10.5 in Bullseye, mariadb-safe or mysqld_safe might be used,
-# or just mysqld. Using mysqld directly is common in containers.
+# The default command to run after the entrypoint script finishes
+# The entrypoint script will execute this command using 'exec "$@"'
 CMD ["mysqld", "--user=mysql", "--console"]

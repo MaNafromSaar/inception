@@ -1,125 +1,78 @@
 #!/bin/bash
+
+# Exit immediately if a command exits with a non-zero status.
 set -e
 
-# Function to check if MariaDB is up and running
-is_mysql_ready() {
-    mysqladmin ping -hlocalhost --silent
-}
+# --- Robust Database Initialization Script ---
+# This script is the container's entrypoint. It initializes the MariaDB database
+# only if it hasn't been initialized yet. This is crucial for data persistence
+# across container restarts.
 
-# Ensure /var/run/mysqld exists and has correct permissions
-if [ ! -d "/var/run/mysqld" ]; then
-    mkdir -p /var/run/mysqld
-    chown -R mysql:mysql /var/run/mysqld
-    chmod 700 /var/run/mysqld
+# Define the data directory
+DATADIR="/var/lib/mysql"
+
+# 1. Check if the database directory is already initialized
+# We check for the presence of the 'mysql' database directory, which is a core component.
+if [ -d "$DATADIR/mysql" ]; then
+    echo "[INFO] Database directory found. Skipping initialization."
+else
+    echo "[INFO] Database directory not found. Initializing database..."
+    # The 'mysql_install_db' script initializes the data directory, creates system tables, etc.
+    # We specify the user to run as and the data directory.
+    mysql_install_db --user=mysql --datadir="$DATADIR"
+    echo "[INFO] Database initialized."
 fi
 
-# Same for /var/lib/mysql if it\'s not automatically handled by volume mount
-if [ ! -d "/var/lib/mysql/mysql" ]; then # Check for a common subdirectory
-    chown -R mysql:mysql /var/lib/mysql
-    chmod 700 /var/lib/mysql
+# 2. Start the MariaDB server in the background
+# We use 'exec' to replace the shell process with the mysqld process, but we send it to the background (&).
+# The 'mysqld_safe' script is often used as it monitors the server and restarts it if it crashes.
+# We will temporarily start it to perform setup, then shut it down to restart it in the foreground.
+mysqld_safe --user=mysql --datadir="$DATADIR" &
+pid="$!"
+
+# 3. Wait for the database server to be ready
+echo "[INFO] Waiting for MariaDB server to start..."
+# We ping the server until it responds successfully.
+# The 'mysqladmin' tool is perfect for this.
+until mysqladmin ping -h localhost --silent; do
+    echo -n "."
+    sleep 1
+done
+echo "\n[INFO] MariaDB server is running."
+
+# 4. Check if the WordPress database exists and create it if it doesn't
+# We use a 'mysql' command to check the information_schema for our database name.
+# The output is redirected to /dev/null, and we check the exit code.
+if ! mysql -u root -e "USE \`${MYSQL_DATABASE}\`;" &> /dev/null; then
+    echo "[INFO] WordPress database '${MYSQL_DATABASE}' not found. Creating database and user..."
+
+    # Create the database and user using the credentials from the .env file.
+    # Using a here-document (<<EOF) makes the SQL commands clean and readable.
+    mysql -u root <<-EOF
+        CREATE DATABASE \`${MYSQL_DATABASE}\`;
+        CREATE USER \`${MYSQL_USER}\`@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
+        GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO \`${MYSQL_USER}\`@'%';
+        FLUSH PRIVILEGES;
+        ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
+EOF
+    echo "[INFO] Database '${MYSQL_DATABASE}' and user '${MYSQL_USER}' created."
+else
+    echo "[INFO] WordPress database '${MYSQL_DATABASE}' already exists. Skipping creation."
 fi
 
-
-# Initialize MariaDB data directory if it\'s empty
-# This is crucial for the first run.
-if [ -z "$(ls -A /var/lib/mysql)" ]; then
-    echo "Initializing MariaDB data directory..."
-    # mysql_install_db is deprecated in newer MariaDB versions,
-    # mariadb-install-db should be used or it happens automatically.
-    # For Debian buster\'s MariaDB 10.3, it might still be relevant or handled by the package.
-    # If issues, check specific MariaDB version docs.
-    # Typically, just starting mysqld_safe or mysqld bootstraps it.
-    # We will let the initial mysqld startup handle this.
-    # However, we need to ensure permissions are correct.
-    chown -R mysql:mysql /var/lib/mysql
-    chmod 700 /var/lib/mysql
-    mariadb-install-db --user=mysql --datadir=/var/lib/mysql
-    echo "MariaDB data directory initialized."
-
-    # Start MariaDB server in the background temporarily for setup
-    echo "Starting MariaDB server for setup..."
-    # mysqld_safe --user=mysql --datadir=/var/lib/mysql &
-    # Using mysqld directly as it's often preferred for containers
-    mysqld --user=mysql --datadir=/var/lib/mysql &
-    pid="$!"
-
-    # Wait for MariaDB to be ready
-    echo "Waiting for MariaDB to start..."
-    for i in {30..0}; do
-        if is_mysql_ready; then
-            echo "MariaDB is ready."
-            break
-        fi
-        echo "MariaDB not yet ready, waiting... ($i)"
-        sleep 1
-    done
-    if [ "$i" = 0 ]; then
-        echo >&2 "MariaDB setup timed out."
-        # Print logs if available
-        if [ -f /var/log/mysql/error.log ]; then
-            cat /var/log/mysql/error.log
-        fi
-        exit 1
-    fi
-
-    # Perform setup using SQL commands
-    # Note: Using environment variables for credentials.
-    echo "Running MariaDB setup SQL..."
-
-    # SQL to execute. Using temp file for heredoc.
-    SQL_COMMANDS=$(mktemp)
-    cat > "$SQL_COMMANDS" <<-EOSQL
-		-- Create database if it doesn't exist
-		CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE}\`;
-
-		-- Create user if it doesn't exist and grant privileges
-		-- Note: MariaDB syntax for IF NOT EXISTS with CREATE USER might vary or not be direct.
-		-- It's safer to attempt creation and handle potential errors or check first.
-		-- For simplicity, we assume it's the first setup.
-		-- If you need idempotency, you might need more complex SQL.
-
-		-- Change root password
-		ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
-
-		-- Create the WordPress user
-		CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
-		GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%';
-
-		-- Flush privileges to ensure changes take effect
-		FLUSH PRIVILEGES;
-	EOSQL
-
-    # Execute the SQL commands
-    echo "Executing SQL: "
-    cat "$SQL_COMMANDS"
-    if mysql -u root < "$SQL_COMMANDS"; then
-        echo "SQL commands executed successfully."
-    else
-        echo >&2 "SQL commands failed."
-        # Print logs if available
-        if [ -f /var/log/mysql/error.log ]; then
-            cat /var/log/mysql/error.log
-        fi
-        # Attempt to shut down the temporary server before exiting
-        if ! kill -s TERM "$pid" || ! wait "$pid"; then
-            echo >&2 "Failed to shutdown temporary MariaDB server."
-        fi
-        rm -f "$SQL_COMMANDS"
-        exit 1
-    fi
-
-    rm -f "$SQL_COMMANDS"
-
-    # Shut down the temporary MariaDB server
-    echo "Shutting down temporary MariaDB server..."
-    if ! kill -s TERM "$pid" || ! wait "$pid"; then
-        echo >&2 "Failed to shutdown temporary MariaDB server."
-        exit 1
-    fi
-    echo "Temporary MariaDB server shut down."
+# 5. Shut down the temporary server
+echo "[INFO] Shutting down temporary MariaDB server..."
+if ! mysqladmin -u root -p"${MYSQL_ROOT_PASSWORD}" shutdown; then
+    echo "[WARN] Failed to shut down server with root password. Trying without password..."
+    mysqladmin -u root shutdown
 fi
 
-# Now, execute the command passed to the entrypoint (e.g., CMD in Dockerfile)
-# This will start MariaDB in the foreground as the main container process.
-echo "Starting MariaDB with command: $@"
-exec "$@"
+# Wait for the server process to truly stop
+wait "$pid"
+echo "[INFO] Temporary server shut down."
+
+# 6. Start the final MariaDB server in the foreground
+# This is the main process of the container. 'exec' is important as it makes
+# 'mysqld' the container's PID 1, allowing it to receive signals correctly.
+echo "[INFO] Restarting MariaDB server in the foreground..."
+exec mysqld --user=mysql --console
