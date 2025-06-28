@@ -18,12 +18,35 @@ The entire stack is designed to be self-contained and easy to deploy on a virtua
 
 ## Getting Started
 
-### Prerequisites
+### Method 1: Automated VM Setup (Recommended)
 
+This project includes a script to automate the entire setup of a fresh Debian VM. This is the fastest and most reliable way to get started.
+
+1.  **On the new VM, log in as `root`** (`su -`).
+2.  **Get the setup script onto the VM.** You can either clone the whole repository as root, or just copy the content of `setup_vm.sh` into a new file.
+    ```bash
+    # Option A: Clone the repo (you might need to install git first: apt-get update && apt-get install git)
+    git clone https://github.com/MaNafromSaar/inception.git
+    cd inception
+    chmod +x setup_vm.sh
+    ./setup_vm.sh
+    ```
+3.  **Follow the script prompts.** It will ask for the regular username to grant `sudo` privileges to.
+4.  **Log out from `root` and log back in as your regular user.** The VM is now fully prepared. You can proceed to clone the repo (if you haven't already) and run `make`.
+
+### Method 2: Manual Installation
+
+Follow these steps if you prefer to set up the environment manually.
+
+#### Prerequisites
+
+*   A user with `sudo` privileges.
+*   `git`
+*   `make` (from the `build-essential` package)
 *   Docker
 *   Docker Compose
 
-### Installation & Usage
+#### Installation & Usage
 
 1.  **Clone the Repository**
     ```bash
