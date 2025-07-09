@@ -53,8 +53,7 @@ apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin do
 echo "Docker Engine installation complete."
 
 # --- Add user to the docker group ---
-echo "
-Step 5: Adding user '$regular_user' to the docker group..."
+echo "\nStep 5: Adding user '$regular_user' to the docker group..."
 if id "$regular_user" &>/dev/null; then
     usermod -aG docker $regular_user
     echo "User '$regular_user' added to the docker group. They will need to log out and log back in for it to take effect."
@@ -76,8 +75,7 @@ else
 fi
 
 # --- Final Instructions ---
-echo "
--------------------------------------------------"
+echo "\n-------------------------------------------------"
 echo "✅ VM Setup is Complete!"
 echo "-------------------------------------------------"
 echo "Next steps for the user '$regular_user':"
