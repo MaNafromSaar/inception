@@ -1,5 +1,3 @@
-# ...existing code from setup_vm.sh...
-
 #!/bin/bash
 
 # Inception VM Setup Script
