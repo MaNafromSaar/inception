@@ -2,6 +2,8 @@
 
 This guide provides step-by-step instructions to set up a Debian 11 (Bullseye) Virtual Machine for the Inception project.
 
+> **Note:** There is only a `.env.example` template in `srcs/` to make clear which credentials are needed. During Evaluation you will be given a one-time download linke for obtaining a working .env file.
+
 ## 1. Prerequisites
 
 *   **VirtualBox:** Latest version.

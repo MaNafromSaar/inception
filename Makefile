@@ -3,13 +3,14 @@
 # --- Variables ---
 # Use the current user's login name automatically for portability.
 LOGIN ?= $(shell whoami)
+ENV_FILE = srcs/.env
 
 # --- Compose Configuration ---
 # This Makefile supports two modes for volume management:
 # 1. default (Docker-managed volumes): Portable, works well on WSL2. Run with `make`.
 # 2. host (Host-bind mounts): Uses /home/$(LOGIN)/data, as per the 42 subject. Run with `make up-host` or by adding `MODE=host` to any command.
 
-COMPOSE_BASE = LOGIN=$(LOGIN) docker compose -f srcs/docker-compose.yml --env-file srcs/.env
+COMPOSE_BASE = LOGIN=$(LOGIN) docker-compose -f srcs/docker-compose.yml --env-file srcs/.env
 
 # Conditionally add the host override file if MODE=host
 ifeq ($(MODE),host)
@@ -37,8 +38,9 @@ all: up
 
 # Build and start with Docker-managed volumes (default).
 up: env-check
-	@echo "$(BLUE)Building and starting services with Docker-managed volumes...$(NC)"
+	@echo "---> (up) Starting the main build command..."
 	@$(COMPOSE) up --build -d
+	@echo "---> (up) Main build command finished."
 	@echo "$(GREEN)Services started. Use 'make status' to check them.$(NC)"
 
 # Build and start with host-bind mounts (42 subject compliant).
@@ -49,11 +51,13 @@ up-host: dirs-check up
 # Check for .env file. If it doesn't exist, copy from the example.
 # This no longer causes make to exit, allowing the process to continue.
 env-check:
+	@echo "---> (env-check) Checking for .env file..."
 	@if [ ! -f $(ENV_FILE) ]; then \
 		echo "$(YELLOW).env file not found. Creating from .env.example...$(NC)"; \
 		cp srcs/.env.example $(ENV_FILE); \
 		echo "$(GREEN)Successfully created $(ENV_FILE). You may want to customize it later.$(NC)"; \
 	fi
+	@echo "---> (env-check) Finished checking for .env file."
 
 # Check if data directories exist (only needed for host mode).
 dirs-check:
@@ -116,10 +120,16 @@ logs-wordpress:
 logs-mariadb:
 	@$(COMPOSE) logs -f mariadb
 
+logs-redis:
+	@$(COMPOSE) logs -f redis
+
+logs-adminer:
+	@$(COMPOSE) logs -f adminer
+
 # Test connectivity - checks if all services are properly connected
 test:
 	@echo "$(BLUE)Running connectivity tests...$(NC)"
-	@./test_connectivity.sh
+	@./scripts/test_connectivity.sh
 	@echo "$(GREEN)Testing completed.$(NC)"
 
 # Create SSL certificate if needed (useful for development)
@@ -128,4 +138,13 @@ ssl:
 	@./srcs/requirements/nginx/tools/generate_ssl.sh
 	@echo "$(GREEN)SSL certificate generated.$(NC)"
 
-.PHONY: all up up-host down clean fclean re re-host logs logs-nginx logs-wordpress logs-mariadb env-check dirs-check status test ssl
+COMPOSE_FILE = srcs/docker-compose.yml
+
+# Get the domain name from the .env file
+DOMAIN_NAME = $(shell grep DOMAIN_NAME srcs/.env | cut -d '=' -f2)
+
+# List of domains to add to /etc/hosts
+DOMAINS = www.${DOMAIN_NAME} ${DOMAIN_NAME} adminer.${DOMAIN_NAME} static.${DOMAIN_NAME}
+
+.PHONY: all up up-host down clean fclean re re-host logs logs-nginx logs-wordpress logs-mariadb logs-redis logs-adminer env-check dirs-check status test ssl
+
