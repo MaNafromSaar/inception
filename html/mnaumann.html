@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matthias Naumann - Skill Profile</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Mono:wght@400;700&family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4B2067; /* dark purple */
+            --secondary: #64ffda; /* teal */
+            --bg: #f9f9f9;
+            --card-bg: #fff;
+            --text: #222;
+            --code-bg: #23272e;
+            --code-text: #64ffda;
+            --outline: #64ffda;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #181a1b;
+                --card-bg: #23272e;
+                --text: #eaeaea;
+                --primary: #64ffda; /* teal for dark mode */
+                --outline: #4B2067; /* purple outline for teal */
+            }
+        }
+        body {
+            font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 850px;
+            margin: 3em auto;
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 4px 24px rgba(10,25,47,0.15);
+            padding: 2.5em 2em 2em 2em;
+            position: relative;
+        }
+        header {
+            display: flex;
+            align-items: center;
+            gap: 1.5em;
+            margin-bottom: 2em;
+        }
+        .avatar {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: var(--secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5em;
+            color: var(--primary);
+            box-shadow: 0 2px 8px rgba(100,255,218,0.15);
+            border: 4px solid var(--primary);
+            outline: 2px solid var(--outline);
+            outline-offset: 2px;
+        }
+        h1 {
+            font-size: 2.2em;
+            margin: 0;
+            color: var(--primary);
+            font-family: 'Fira Mono', monospace;
+        }
+        h2 {
+            color: var(--primary);
+            font-size: 1.3em;
+            margin-top: 2em;
+            margin-bottom: 0.5em;
+            font-family: 'Fira Mono', monospace;
+            border-left: 4px solid var(--outline);
+            padding-left: 0.5em;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        li {
+            margin-bottom: 0.7em;
+            padding-left: 1.5em;
+            position: relative;
+            font-size: 1.08em;
+        }
+        li:before {
+            content: "💡";
+            position: absolute;
+            left: 0;
+            color: var(--secondary);
+            font-size: 1em;
+        }
+        section {
+            margin-bottom: 1.5em;
+        }
+        .code-block {
+            background: var(--code-bg);
+            color: var(--code-text);
+            font-family: 'Fira Mono', monospace;
+            border-radius: 6px;
+            padding: 1em;
+            margin: 1em 0;
+            font-size: 1em;
+            overflow-x: auto;
+        }
+        .links {
+            margin: 2em 0 0 0;
+            display: flex;
+            justify-content: center;
+            gap: 1.5em;
+        }
+        .icon-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5em;
+            background: var(--code-bg);
+            color: var(--code-text);
+            border-radius: 6px;
+            padding: 0.5em 1em;
+            font-family: 'Fira Mono', monospace;
+            font-size: 1.1em;
+            text-decoration: none;
+            transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+            box-shadow: 0 2px 8px rgba(100,255,218,0.08);
+            border: 2px solid var(--outline);
+        }
+        .icon-link:hover {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--secondary);
+        }
+        footer {
+            margin-top: 2.5em;
+            text-align: center;
+            font-size: 0.95em;
+            color: #888;
+        }
+        @media (max-width: 600px) {
+            .container { padding: 1em; }
+            header { flex-direction: column; gap: 0.5em; }
+            h1 { font-size: 1.3em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="avatar" title="Nerdy Avatar">🧑‍💻</div>
+            <div>
+                <h1>Matthias Naumann</h1>
+                <div style="font-family: 'Fira Mono', monospace; color: var(--secondary); font-size: 1.1em;">Skill Profile &amp; Credentials</div>
+            </div>
+        </header>
+
+        <section id="job-background">
+            <h2>🎓 Job Background</h2>
+            <ul>
+                <li>Teacher - university, freelance, school (gymnasium): English, Philosophy (analytical), Maths, French, Latin</li>
+                <li>IT support freelance</li>
+                <li>Sound engineer freelance</li>
+            </ul>
+        </section>
+
+        <section id="right-now">
+            <h2>🚀 Right Now</h2>
+            <ul>
+                <li>Student at 42 Heilbronn, a ground-breaking coding school (~85% core curriculum passed as of writing)</li>
+                <li>Private students in Maths and Languages</li>
+                <li>IT support and social media content for Tholey Abbey</li>
+            </ul>
+        </section>
+
+        <section id="core-skills">
+            <h2>🛠️ Core Skills</h2>
+            <ul>
+                <li>Problem solving, logics, deduction</li>
+                <li>Proficiency in several coding languages (C, C++, Python, JS …to be continued)</li>
+                <li>Excellent communication skills through several languages and registers</li>
+                <li>Cybersecurity and CTF challenges are quite a new occupation (Hackthebox - Pentester Path) </li>
+                <li>Mastery in German, English and French (all C2 CEFR) plus linguistics knowledge at university level</li>
+                <li>Very large knowledge base reaching from Greek mythology via geology to the history of rock</li>
+				</li>
+            </ul>
+        </section>
+
+        <section id="side-quests">
+            <h2>🧩 Side Quests</h2>
+            <ul>
+                <li>Trained firefighter (Yes, with truck driving and air tank etc.)</li>
+                <li>Musician (mainly bass guitar) and sound engineer (live and studio: recording, mixing, mastering)</li>
+                <li>Love cooking</li>
+                <li>Variant sudoku (as nerdy as it gets)</li>
+                <li>Lifelong learning as intrinsic motivation</li>
+            </ul>
+        </section>
+
+        <div class="code-block">
+            // Lifelong learning = <span style="color:var(--secondary)">true</span>;<br>
+            // <span style="color:var(--secondary)">42</span> curriculum_progress = 0.85;<br>
+            // Languages = ["English", "German", "French", "Saarländisch", "various logics", "maths", "C", "C++", "Python", "JS", "html", "node.js", "make.com", "SQL", "bash", "Powershell", "git", "Docker" ...];<br>
+			// Skills = ["Problem solving", "Deduction", "Communication", "Cybersecurity", "Teaching", "Sound engineering", ...];<br>
+			// reachable = "(my) last name"+"linguae" (at) gmail.com;<br>
+			// return job offer;
+        </div>
+
+        <div class="links">
+            <a class="icon-link" href="https://github.com/MaNafromSaar" target="_blank" title="GitHub"><span>🐙</span>GitHub</a>
+            <a class="icon-link" href="https://www.youtube.com/shorts/J8hgm8G-nb8" target="_blank" title="42"><span>🔗</span>42</a>
+            <a class="icon-link" href="https://www.khanacademy.org/profile/MaNaSaar/" target="_blank" title="Khan Academy"><span>🎓</span>Khan Academy</a>
+        </div>
+
+        <footer>
+            <p>This page is served statically via Nginx from a Docker container.<br>
+            <span style="font-size:0.9em;">&copy; 2025 Matthias Naumann</span></p>
+        </footer>
+    </div>
+</body>
+</html>

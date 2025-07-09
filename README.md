@@ -59,6 +59,7 @@ Follow these steps if you prefer to set up the environment manually.
     -   Navigate to the `srcs/` directory.
     -   Create a `.env` file by copying the example: `cp .env.example .env`
     -   Edit `srcs/.env` to set your `DOMAIN_NAME`, secure database credentials, and unique WordPress salts.
+    > **Note:** The `.env.example` file is the only template provided for secrets. The original subject file is not included in this repository.
     > **Warning:** The `.env` file contains sensitive information. It is included in `.gitignore` and should never be committed to version control.
 
 3.  **Build and Run**

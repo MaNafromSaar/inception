@@ -1,101 +1,108 @@
 #!/bin/bash
-set -e # Exit immediately if a command exits with a non-zero status.
 
-WORDPRESS_PATH=/var/www/html
-WP_CONFIG_FILE=${WORDPRESS_PATH}/wp-config.php
+# Exit immediately if a command exits with a non-zero status.
+set -e
 
-# Function to check if MariaDB is accessible
-wait_for_db() {
-    echo "Waiting for database host ${WP_DB_HOST}..."
-    while ! nc -z "${WP_DB_HOST}" 3306; do
-        echo "Database not yet reachable, waiting..."
-        sleep 1
-    done
-    echo "Database host ${WP_DB_HOST} is reachable."
+#
+# This script is executed by the official WordPress entrypoint. It waits for the
+# database to be ready, then installs WordPress, creates a user, and sets up
+# a Redis cache.
+#
+# The following environment variables are expected to be set:
+# - WP_DB_HOST: The hostname of the database server.
+# - WP_DB_NAME: The name of the database.
+# - WP_DB_USER: The username for the database.
+# - WP_DB_PASSWORD: The password for the database.
+# - WP_ADMIN_USER: The desired WordPress admin username.
+# - WP_ADMIN_PASSWORD: The desired WordPress admin password.
+# - WP_ADMIN_EMAIL: The email address for the WordPress admin user.
+# - WP_USER_USER: The desired WordPress user username.
+# - WP_USER_PASSWORD: The desired WordPress user password.
+# - WP_USER_EMAIL: The email address for the WordPress user.
+# - REDIS_HOST: The hostname of the Redis server.
+# - REDIS_PORT: The port of the Redis server.
+# - REDIS_PASSWORD: The password for the Redis server.
+# - DOMAIN_NAME: The domain name for the WordPress site.
+
+# Function to log messages with a timestamp.
+log() {
+    echo "[WP-BONUS-CONFIG] - [$(date '+%Y-%m-%d %H:%M:%S')] - $1"
 }
 
-# Wait for the database to be ready before proceeding
-wait_for_db
+# Start of the script.
+log "Starting bonus WordPress configuration script..."
 
-# Check if wp-config.php already exists
-if [ -f "${WP_CONFIG_FILE}" ]; then
-    echo "wp-config.php already exists. Skipping creation."
+# set HOST
+export HTTP_HOST="${DOMAIN_NAME:-localhost}"
+
+# Wait for the database to be ready before proceeding.
+log "Waiting for database connection at $WP_DB_HOST..."
+while ! nc -z "$WP_DB_HOST" 3306; do
+    log "Database is unavailable - sleeping"
+    sleep 1
+done
+log "Database is up - executing command"
+
+# The official wordpress entrypoint copies files to /var/www/html.
+# We need to wait for this to complete before running wp-cli commands.
+# We'll wait for the wp-load.php file to exist.
+log "Waiting for WordPress files to be copied..."
+while [ ! -f "/var/www/html/wp-load.php" ]; do
+    log "WordPress files not found yet - sleeping"
+    sleep 1
+done
+log "WordPress files are present."
+
+# Check if wp-config.php exists. If not, create it.
+if [ ! -f "wp-config.php" ]; then
+    log "wp-config.php not found. Creating it now..."
+    wp config create --allow-root \
+        --dbname="$WP_DB_NAME" \
+        --dbuser="$WP_DB_USER" \
+        --dbpass="$WP_DB_PASSWORD" \
+        --dbhost="$WP_DB_HOST" \
+        --path='/var/www/html'
+    log "wp-config.php created successfully."
+fi
+
+# Check if WordPress is already installed.
+if wp core is-installed --allow-root; then
+    log "WordPress is already installed. Skipping installation."
 else
-    echo "wp-config.php not found. Creating from sample..."
-    # Copy wp-config-sample.php to wp-config.php
-    cp "${WORDPRESS_PATH}/wp-config-sample.php" "${WP_CONFIG_FILE}"
+    # Install WordPress using WP-CLI.
+    log "Installing WordPress..."
+    wp core install --url="$DOMAIN_NAME" --title="Inception" \
+        --admin_user="$WP_ADMIN_USER" --admin_password="$WP_ADMIN_PASSWORD" --admin_email="$WP_ADMIN_EMAIL" \
+        --skip-email --allow-root
+    log "WordPress installed successfully."
 
-    echo "Configuring wp-config.php..."
-    # Set database details
-    sed -i "s/database_name_here/${WP_DB_NAME}/g" "${WP_CONFIG_FILE}"
-    sed -i "s/username_here/${WP_DB_USER}/g" "${WP_CONFIG_FILE}"
-    sed -i "s/password_here/${WP_DB_PASSWORD}/g" "${WP_CONFIG_FILE}"
-    sed -i "s/localhost/${WP_DB_HOST}/g" "${WP_CONFIG_FILE}" # WordPress connects to MariaDB service name
+    # Create a new user.
+    log "Creating user..."
+    wp user create "$WP_USER_USER" "$WP_USER_EMAIL" --role=author --user_pass="$WP_USER_PASSWORD" --allow-root
+    log "User created successfully."
 
-    # Set WordPress salts and keys from environment variables
-    # These should be defined in the Dockerfile or passed via docker-compose from .env
-    sed -i "/AUTH_KEY/s/put your unique phrase here/${AUTH_KEY}/" "${WP_CONFIG_FILE}"
-    sed -i "/SECURE_AUTH_KEY/s/put your unique phrase here/${SECURE_AUTH_KEY}/" "${WP_CONFIG_FILE}"
-    sed -i "/LOGGED_IN_KEY/s/put your unique phrase here/${LOGGED_IN_KEY}/" "${WP_CONFIG_FILE}"
-    sed -i "/NONCE_KEY/s/put your unique phrase here/${NONCE_KEY}/" "${WP_CONFIG_FILE}"
-    sed -i "/AUTH_SALT/s/put your unique phrase here/${AUTH_SALT}/" "${WP_CONFIG_FILE}"
-    sed -i "/SECURE_AUTH_SALT/s/put your unique phrase here/${SECURE_AUTH_SALT}/" "${WP_CONFIG_FILE}"
-    sed -i "/LOGGED_IN_SALT/s/put your unique phrase here/${LOGGED_IN_SALT}/" "${WP_CONFIG_FILE}"
-    sed -i "/NONCE_SALT/s/put your unique phrase here/${NONCE_SALT}/" "${WP_CONFIG_FILE}"
-
-    # Add FS_METHOD direct to avoid issues with plugin/theme installations
-    echo "define('FS_METHOD', 'direct');" >> "${WP_CONFIG_FILE}"
-
-    # Set correct permissions for wp-config.php
-    chown www-data:www-data "${WP_CONFIG_FILE}"
-    chmod 640 "${WP_CONFIG_FILE}" # More restrictive permissions
-
-    echo "wp-config.php configured."
+    # Configure Redis cache.
+    log "Configuring Redis cache..."
+    wp config set WP_REDIS_HOST "redis" --allow-root
+    wp config set WP_REDIS_PORT "6379" --allow-root
+    wp config set WP_REDIS_PASSWORD "$REDIS_PASSWORD" --allow-root
+    wp config set WP_CACHE_KEY_SALT "$DOMAIN_NAME" --allow-root
+    wp config set WP_REDIS_CLIENT "phpredis" --allow-root
+    wp plugin install redis-cache --activate --allow-root
+    wp redis enable --allow-root
+    log "Redis cache configured successfully."
 fi
 
-# Check if WordPress is already installed. We check for the existence of the user.
-# The `wp user get` command will fail if the user doesn't exist, and `set -e` will stop the script.
-if sudo -u www-data wp core is-installed --path=${WORDPRESS_PATH} > /dev/null 2>&1; then
-    echo "WordPress is already installed. Skipping installation."
-else
-    echo "WordPress is not installed. Starting installation..."
-
-    # Install WordPress using wp-cli
-    # The --allow-root flag is often needed when running in Docker containers
-    sudo -u www-data wp core install \
-        --path=${WORDPRESS_PATH} \
-        --url=${WP_SITE_URL} \
-        --title="${WP_SITE_TITLE}" \
-        --admin_user=${WP_ADMIN_USER} \
-        --admin_password=${WP_ADMIN_PASSWORD} \
-        --admin_email=${WP_ADMIN_EMAIL}
-
-    echo "WordPress core installed."
-
-    # Create the second user
-    sudo -u www-data wp user create \
-        --path=${WORDPRESS_PATH} \
-        ${WP_USER_USER} \
-        ${WP_USER_EMAIL} \
-        --role=author \
-        --user_pass=${WP_USER_PASSWORD}
-
-    echo "Second WordPress user created."
-
-    echo "WordPress installation complete."
+log "Verifying PHP Redis extension..."
+if ! php -m | grep -q redis; then
+    log "ERROR: PHP Redis extension not loaded"
+    exit 1
 fi
 
-# Ensure correct ownership of all WordPress files
-# This is important after wp-cli commands
-# This might be redundant if Dockerfile already does it, but good for safety
-chown -R www-data:www-data ${WORDPRESS_PATH}
+log "WordPress bonus configuration script finished."
 
-# Create the directory for the PHP-FPM PID file and set correct ownership
-if [ ! -d /run/php ]; then
-    mkdir -p /run/php
-    chown www-data:www-data /run/php
-fi
+# Create a marker file to indicate that the configuration is complete.
+# The healthcheck script will look for this file.
+touch /var/www/html/.wp-configured
+log "Created .wp-configured marker file."
 
-echo "Starting WordPress (php-fpm) with command: $@"
-# Execute the command passed to the entrypoint (e.g., CMD in Dockerfile for php-fpm)
-exec "$@"

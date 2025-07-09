@@ -1,82 +1,130 @@
 services:
   # Nginx Service (Reverse Proxy)
   nginx:
-    container_name: nginx
-    image: nginx # Image name must be the same as the service name
+    image: inception-nginx
+    container_name: inception-nginx
     build:
       context: ./requirements/nginx
       dockerfile: Dockerfile
     ports:
       - "443:443"
+      - "8081:8081"
     volumes:
-      # Use the named volume from the wordpress service.
-      # This ensures Nginx can read the files WordPress creates.
       - wordpress_data:/var/www/html:ro
+      - ../html:/var/www/static:ro
     networks:
       - inception_network
     depends_on:
       wordpress:
         condition: service_healthy
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "service", "nginx", "status", "||", "exit", "1"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
     env_file:
       - .env
 
   # WordPress Service
   wordpress:
-    container_name: wordpress
-    image: wordpress # Image name must be the same as the service name
+    image: inception-wordpress
+    container_name: inception-wordpress
     build:
       context: ./requirements/wordpress
       dockerfile: Dockerfile
     volumes:
-      # Use a Docker-managed named volume for WordPress data.
       - wordpress_data:/var/www/html
     networks:
       - inception_network
     depends_on:
       mariadb:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     env_file:
       - .env
     healthcheck:
-      test: ["CMD", "pgrep", "php-fpm7.4"]
-      interval: 15s
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      interval: 10s
       timeout: 5s
-      retries: 3
+      retries: 10
+      start_period: 60s
 
   # MariaDB Service
   mariadb:
-    container_name: mariadb
-    image: mariadb # Image name must be the same as the service name
-    build:
-      context: ./requirements/mariadb
-      dockerfile: Dockerfile
+    image: inception-mariadb
+    container_name: inception-mariadb
+    build: ./requirements/mariadb
+    env_file: .env
+    networks:
+      - inception_network
     volumes:
-      # Use a Docker-managed named volume for MariaDB data.
       - mariadb_data:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      # Use the root user for the healthcheck, as the wordpress user may not exist yet.
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Redis Service
+  redis:
+    image: inception-redis
+    container_name: inception-redis
+    build: ./requirements/redis
+    env_file: .env
     networks:
       - inception_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
-      interval: 15s
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
       timeout: 5s
       retries: 3
+      start_period: 20s
+
+  # Adminer Service
+  adminer:
+    container_name: inception-adminer
+    image: adminer
+    ports:
+      - "8080:8080"
+    networks:
+      - inception_network
+    restart: unless-stopped
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+  # FTP Service
+  ftp:
+    image: inception-ftp
+    container_name: inception-ftp
+    build:
+      context: ./requirements/ftp
+      dockerfile: Dockerfile
+      args:
+        FTP_USER: ${FTP_USER}
+        FTP_PASS: ${FTP_PASS}
+    ports:
+      - "20:20"
+      - "21:21"
+      - "21000-21010:21000-21010"
+    volumes:
+      - wordpress_data:/var/www/html
+    networks:
+      - inception_network
+    depends_on:
+      wordpress:
+        condition: service_healthy
+    restart: unless-stopped
     env_file:
       - .env
 
 networks:
   inception_network:
     driver: bridge
-    name: inception_network # Explicitly naming the network
+    name: inception_network
 
-# Define the Docker-managed volumes
 volumes:
   wordpress_data:
     driver: local

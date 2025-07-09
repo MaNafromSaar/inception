@@ -1,26 +1,23 @@
-#!/bin/bash
+#!/bin/sh
+
+# Exit immediately if a command exits with a non-zero status.
 set -e
 
-# Run SSL generation script which creates certs based on DOMAIN_NAME
+# First, generate the SSL certificate. This script will check if the certificate
+# already exists and skip generation if it does. It needs to be run at startup
+# to ensure it can access runtime environment variables like DOMAIN_NAME.
 /usr/local/bin/generate_ssl.sh
 
-# The nginx.conf file now uses ${DOMAIN_NAME} as a placeholder.
-# We use envsubst to replace this placeholder with the actual value from the environment.
-# This makes the configuration dynamic and dependent on the .env file.
+# Use `envsubst` to substitute environment variables in the template file.
+# We only want to substitute the DOMAIN_NAME and other potential variables
+# we might add later. We must specify the variables to avoid substituting
+# Nginx's own internal variables like $uri, $host, etc.
 
-# Define the source and destination for the config file
-CONF_TEMPLATE="/etc/nginx/nginx.conf"
-CONF_DEST="/etc/nginx/nginx.conf.substituted"
+# Note: The single quotes around '${DOMAIN_NAME}' are important.
+envsubst '${DOMAIN_NAME} ${STATIC_SITE_DOMAIN_NAME}' < /etc/nginx/templates/nginx.conf.template > /etc/nginx/nginx.conf
 
-echo "Substituting DOMAIN_NAME=${DOMAIN_NAME} in Nginx config..."
-# Use envsubst to replace the variable and create the final config file
-# Note: We are reading from the original and writing to a new file, then replacing.
-# This is safer than in-place editing.
-envsubst '${DOMAIN_NAME}' < "${CONF_TEMPLATE}" > "${CONF_DEST}"
-
-# Replace the original config with the substituted one
-mv "${CONF_DEST}" "${CONF_TEMPLATE}"
-
-echo "Starting Nginx..."
-# Execute the CMD from the Dockerfile (e.g., nginx -g 'daemon off;')
+# Now that the configuration is generated, execute the command passed to this script.
+# This will be the `CMD` from the Dockerfile (e.g., `nginx -g "daemon off;"`).
+# Using `exec "$@"` is a best practice that ensures the main process (Nginx)
+# receives signals correctly and the container stops gracefully.
 exec "$@"

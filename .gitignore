@@ -1,17 +1,1 @@
-# Ignore environment files with sensitive credentials
-# srcs/.env
-
-# Ignore local data volumes
-/data/
-/home/
-
-# Ignore backup files created by sed
-*.bak
-
-# Ignore system files
-.DS_Store
-thumbs.db
-
-# Ignore IDE/editor specific files
-.vscode/
-.idea/
+# ...existing code from .gitignore...
