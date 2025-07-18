@@ -10,7 +10,7 @@ ENV_FILE = srcs/.env
 # 1. default (Docker-managed volumes): Portable, works well on WSL2. Run with `make`.
 # 2. host (Host-bind mounts): Uses /home/$(LOGIN)/data, as per the 42 subject. Run with `make up-host` or by adding `MODE=host` to any command.
 
-COMPOSE_BASE = LOGIN=$(LOGIN) docker-compose -f srcs/docker-compose.yml --env-file srcs/.env
+COMPOSE_BASE = LOGIN=$(LOGIN) docker compose -f srcs/docker-compose.yml --env-file srcs/.env
 
 # Conditionally add the host override file if MODE=host
 ifeq ($(MODE),host)
