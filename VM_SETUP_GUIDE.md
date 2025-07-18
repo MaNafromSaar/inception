@@ -44,22 +44,42 @@ This guide provides step-by-step instructions to set up a Debian 11 (Bullseye) V
 1.  **Log in** as your non-root user or root.
 2.  **Update the system:**
     ```bash
+    # IMPORTANT: Remove the CD-ROM source from APT to avoid install errors
+    sudo sed -i '/^deb cdrom:/s/^/#/' /etc/apt/sources.list
     sudo apt update && sudo apt full-upgrade -y && sudo apt autoremove -y
     ```
 3.  **Install Essential Packages:**
     ```bash
-    sudo apt install -y curl wget git vim ufw docker.io docker-compose
+    sudo apt install -y curl wget git vim ca-certificates build-essential cmake
     ```
     (If using the setup script, this will be handled automatically.)
-4.  **Configure Firewall (UFW):**
+4.  **Install Docker and Docker Compose (Official Repository):**
     ```bash
+    sudo apt install -y ca-certificates curl gnupg
+    sudo install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    sudo chmod a+r /etc/apt/keyrings/docker.gpg
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+      $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable" | \
+      sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    sudo apt update
+    sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    ```
+    Test with:
+    ```bash
+    docker compose version
+    ```
+5.  **Configure Firewall (UFW):**
+    ```bash
+    sudo apt install -y ufw
     sudo ufw allow ssh
     sudo ufw allow http
     sudo ufw allow https
     sudo ufw allow 8081
     sudo ufw enable
     ```
-5.  **Add your user to the `docker` group:**
+6.  **Add your user to the `docker` group:**
     ```bash
     sudo usermod -aG docker ${USER}
     ```
