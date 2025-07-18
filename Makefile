@@ -31,6 +31,9 @@ YELLOW=\033[1;33m
 RED=\033[0;31m
 NC=\033[0m # No Color
 
+# Docker Compose command fallback (supports both v1 and v2 syntax)
+DOCKER_COMPOSE = $(shell command -v docker-compose 2>/dev/null || echo 'docker compose')
+
 # --- Rules ---
 
 # Default target: Set up and run everything with Docker-managed volumes.
