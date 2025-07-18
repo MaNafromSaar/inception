@@ -54,6 +54,10 @@ This guide provides step-by-step instructions to set up a Debian 11 (Bullseye) V
     ```
     (If using the setup script, this will be handled automatically.)
 4.  **Install Docker and Docker Compose (Official Repository):**
+    > **Tip:** If you are using a desktop environment (GNOME/XFCE), you may find it easier to visit the official Docker website in your browser and follow the latest instructions for Debian: [https://docs.docker.com/engine/install/debian/](https://docs.docker.com/engine/install/debian/)
+    >
+    > This ensures you always get the most up-to-date and accurate steps for your system, with troubleshooting tips and copy-paste commands.
+    
     ```bash
     sudo apt install -y ca-certificates curl gnupg
     sudo install -m 0755 -d /etc/apt/keyrings
@@ -70,6 +74,15 @@ This guide provides step-by-step instructions to set up a Debian 11 (Bullseye) V
     ```bash
     docker compose version
     ```
+    
+    > **Note:** If your Makefile or scripts use `docker-compose` (with a hyphen) but only `docker compose` (with a space) is available, you can add a compatibility alias:
+    >
+    > ```bash
+    > echo 'alias docker-compose="docker compose"' >> ~/.bashrc
+    > source ~/.bashrc
+    > ```
+    >
+    > This will allow `docker-compose` commands to work as expected.
 5.  **Configure Firewall (UFW):**
     ```bash
     sudo apt install -y ufw
