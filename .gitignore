@@ -1,1 +1,5 @@
 # ...existing code from .gitignore...
+srcs/.env
+*.zip
+*.tar*
+*.gz
