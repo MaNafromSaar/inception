@@ -3,3 +3,4 @@ srcs/.env
 *.zip
 *.tar*
 *.gz
+git_history_cleanup.sh
