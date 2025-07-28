@@ -18,6 +18,8 @@ The entire stack is designed to be self-contained and easy to deploy on a virtua
 
 ## Getting Started
 
+Make sure you have received the credentials for the project. The `.env` file is essential for configuring the services and should not be committed to version control. Ask evaluee in case of any question on how to obtain the credentials.
+
 ### Method 1: Automated VM Setup (Recommended)
 
 This project includes a script to automate the entire setup of a fresh Debian VM. This is the fastest and most reliable way to get started.
