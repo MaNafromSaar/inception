@@ -1,100 +1,148 @@
 # Virtual Machine Setup Guide for Inception Project
 
-This guide provides step-by-step instructions to set up a Debian 11 (Bullseye) Virtual Machine for the Inception project. It covers both GUI and headless (server-only) setups, networking, and firewall configuration.
+This guide covers VM setup for the Inception project. **Automated scripts are provided** for a streamlined experience.
+
+**Recommended**: Use the automated scripts (see [Quick Setup](#quick-automated-setup) below).
+
+---
+
+## Quick Automated Setup
+
+For the fastest setup, use the provided automation scripts on your **host machine**:
+
+### Step 1: Download Debian ISO
+
+```bash
+./scripts/prepare_vm.sh
+```
+
+This downloads Debian 11.11.0 (Bullseye) netinst ISO and verifies its integrity.
+
+### Step 2: Create the VM
+
+```bash
+./scripts/create_inception_vm.sh
+```
+
+This creates and configures a VirtualBox VM with optimal settings automatically.
+
+### Step 3: Install Debian
+
+Start the VM (via VirtualBox GUI or `VBoxManage startvm "inception-vm" --type gui`) and follow the Debian installer:
+
+- **Hostname**: `inception`
+- **Domain**: (leave blank)
+- **Root password**: Set a strong password
+- **User account**: Create a non-root user
+- **Partitioning**: `Guided - use entire disk`
+- **Software**: **DESELECT** desktop environments, **SELECT** `SSH server` and `standard system utilities`
+- **GRUB**: Install to `/dev/sda`
+
+### Step 4: Setup Inside VM
+
+After Debian installation, boot into the VM and run (as root):
+
+```bash
+su -
+apt-get update && apt-get install -y git
+git clone https://github.com/MaNafromSaar/inception.git
+cd inception
+chmod +x scripts/setup_vm.sh
+./scripts/setup_vm.sh
+```
+
+**Done!** Your VM is ready to run the Inception project.
+
+---
+
+## Manual Setup (Alternative)
+
+If you prefer manual setup or don't have VirtualBox, follow these detailed instructions.
 
 ## 1. Prerequisites
 
 *   **VirtualBox** (or VMware, or your preferred hypervisor)
-*   **Debian 11 (Bullseye) ISO:** Use the `netinst` image for `amd64`.
+*   **Debian 11 (Bullseye) ISO**: `netinst` image for `amd64`
+    *   Download manually or use `scripts/prepare_vm.sh`
 
-## 2. VM Creation (VirtualBox Example)
+## 2. VM Creation (VirtualBox)
+
+## 2. VM Creation (VirtualBox)
+
+**Note**: The `scripts/create_inception_vm.sh` script automates all of this.
+
+### Manual VM Configuration:
 
 1.  **Create a New VM:**
-    *   **Name:** `inception-vm`
-    *   **Type:** `Linux`
-    *   **Version:** `Debian (64-bit)`
-2.  **Memory:** At least **2 GB** (4 GB recommended for GUI).
+    *   Name: `inception-vm`
+    *   Type: `Linux`
+    *   Version: `Debian (64-bit)`
+2.  **Memory:** 4 GB (4096 MB)
 3.  **Hard Disk:**
-    *   `Create a virtual hard disk now`
-    *   `VDI (VirtualBox Disk Image)`
-    *   `Dynamically allocated`
-    *   **20-25 GB** size.
+    *   Create a virtual hard disk (VDI format)
+    *   Dynamically allocated
+    *   Size: 25 GB
 4.  **Settings:**
-    *   **System > Processor:** **2 CPUs** (or more).
-    *   **Storage:** Mount the Debian 11 ISO to the virtual optical drive.
-    *   **Network:**
-        *   **Adapter 1:** `Bridged Adapter` (recommended for easy host access), or `NAT` with port forwarding.
+    *   **System > Processor:** 2 CPUs
+    *   **Storage:** Attach the Debian ISO to the optical drive
+    *   **Network:** Bridged Adapter (recommended) or NAT with port forwarding
 
-## 3. Debian 11 Installation
+## 3. Debian Installation
 
-1.  **Start the VM** and begin the installation from the ISO.
-2.  **Follow the installer prompts:**
-    *   **Hostname:** `inception`
-    *   **Domain name:** (leave blank)
-    *   **Set a strong root password.**
-    *   **Create a non-root user** for daily use (remember the username and password).
-    *   **Partitioning:** `Guided - use entire disk`.
-    *   **Software Selection:**
-        *   For GUI: Select `XFCE` or `GNOME` desktop environment, `SSH server`, and `standard system utilities`.
-        *   For headless: **DESELECT** desktop environment, **SELECT** `SSH server` and `standard system utilities`.
-    *   **GRUB:** Install to the primary drive (e.g., `/dev/sda`).
+Boot the VM from the ISO and follow the installer.
 
-## 4. Post-Installation Hardening and Setup
+**Key Configuration:**
+**Key Configuration:**
+- **Hostname:** `inception`
+- **Domain name:** (leave blank)
+- **Root password:** Set a strong password
+- **User account:** Create a non-root user
+- **Partitioning:** `Guided - use entire disk`
+- **Software Selection:**
+  - **RECOMMENDED**: Headless setup - **DESELECT** all desktop environments
+  - **SELECT**: `SSH server` and `standard system utilities`
+- **GRUB:** Install to `/dev/sda`
 
-1.  **Log in** as your non-root user or root.
-2.  **Update the system:**
+**Why headless?** Lighter resources, faster performance, more realistic server environment.
+
+## 4. Post-Installation Setup
+
+**Option A: Automated (Recommended)**
+
+Run the provided setup script as root:
+
+```bash
+su -
+apt-get update && apt-get install -y git
+git clone https://github.com/MaNafromSaar/inception.git
+cd inception
+./scripts/setup_vm.sh
+```
+
+The script installs Docker, adds your user to necessary groups, and configures the firewall.
+
+**Option B: Manual Setup**
+
+1.  **Update the system:**
     ```bash
-    # IMPORTANT: Remove the CD-ROM source from APT to avoid install errors
     sudo sed -i '/^deb cdrom:/s/^/#/' /etc/apt/sources.list
-    sudo apt update && sudo apt full-upgrade -y && sudo apt autoremove -y
+    sudo apt update && sudo apt full-upgrade -y
     ```
-3.  **Install Essential Packages:**
+
+2.  **Install Git and build tools** (REQUIRED - not included in base Debian):
     ```bash
-    sudo apt install -y curl wget git vim ca-certificates build-essential cmake
+    sudo apt install -y git build-essential curl wget ca-certificates
     ```
-    (If using the setup script, this will be handled automatically.)
-4.  **Install Docker and Docker Compose (Official Repository):**
-    > **Tip:** If you are using a desktop environment (GNOME/XFCE), you may find it easier to visit the official Docker website in your browser and follow the latest instructions for Debian: [https://docs.docker.com/engine/install/debian/](https://docs.docker.com/engine/install/debian/)
-    >
-    > This ensures you always get the most up-to-date and accurate steps for your system, with troubleshooting tips and copy-paste commands.
-    
-    ```bash
-    sudo apt install -y ca-certificates curl gnupg
-    sudo install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-    sudo chmod a+r /etc/apt/keyrings/docker.gpg
-    echo \
-      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
-      $(. /etc/os-release && echo \"$VERSION_CODENAME\") stable" | \
-      sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-    sudo apt update
-    sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-    ```
-    Test with:
-    ```bash
-    docker compose version
-    ```
-    
-    > **Note:** If your Makefile or scripts use `docker-compose` (with a hyphen) but only `docker compose` (with a space) is available, you can add a compatibility alias:
-    >
-    > ```bash
-    > echo 'alias docker-compose="docker compose"' >> ~/.bashrc
-    > source ~/.bashrc
-    > ```
-    >
-    > This will allow `docker-compose` commands to work as expected.
-5.  **Configure Firewall (UFW):**
-    ```bash
-    sudo apt install -y ufw
-    sudo ufw allow ssh
-    sudo ufw allow http
-    sudo ufw allow https
-    sudo ufw allow 8081
-    sudo ufw enable
-    ```
-6.  **Add your user to the `docker` group:**
-    ```bash
-    sudo usermod -aG docker ${USER}
+
+3.  **Install Docker** (follow official docs or see script for commands)
+
+4.  **Configure firewall, add user to docker group, etc.**
+
+See the automated script for the complete setup sequence.
+
+---
+
+## Network Configuration
     ```
     **IMPORTANT:** Log out and log back in for this to take effect. Verify with `docker ps`.
 
