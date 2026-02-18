@@ -74,17 +74,32 @@ else
     echo "Domains already present in /etc/hosts. No changes made."
 fi
 
+# --- Create data directory for Docker volumes ---
+echo "\nStep 6: Creating data directory for Docker volumes..."
+if id "$regular_user" &>/dev/null; then
+    mkdir -p /home/$regular_user/data
+    chown -R $regular_user:$regular_user /home/$regular_user/data
+    echo "Data directory created at /home/$regular_user/data"
+else
+    echo "Warning: User '$regular_user' not found. Skipping data directory creation."
+fi
+
 # --- Final Instructions ---
 echo "\n-------------------------------------------------"
 echo "✅ VM Setup is Complete!"
 echo "-------------------------------------------------"
 echo "Next steps for the user '$regular_user':"
 echo "1. IMPORTANT: Log out of your session and log back in to apply group permissions (sudo and docker)."
-echo "2. Clone your project repository into your user's home directory."
-echo "3. Navigate into your project directory: cd <project_folder>"
-echo "4. Create your .env file from the example: cp srcs/.env.example srcs/.env"
-echo "5. Edit the 'srcs/.env' file and fill in your secrets."
-echo "6. Run 'make' to build and start the services. If you have issues with old containers, run 'make down && make'."
+echo "2. Transfer your Inception project to this VM (use scp, git, or shared folder)."
+echo "3. Make sure the project includes the 'srcs/.env' file with your credentials."
+echo "4. Navigate into your project directory: cd ~/Inception"
+echo "5. Run 'make up' to build and start all services."
+echo "6. Access WordPress at: https://mnaumann.42.fr"
+echo "7. If you need to stop: 'make down' | Clean everything: 'make fclean'"
+echo ""
+echo "Domain configured: mnaumann.42.fr → 127.0.0.1"
+echo "Data directory: /home/$regular_user/data"
+echo "-------------------------------------------------"
 
 
 

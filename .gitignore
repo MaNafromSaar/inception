@@ -4,3 +4,6 @@ srcs/.env
 *.tar*
 *.gz
 git_history_cleanup.sh
+
+# Ignore all files in the srcs directory except for .env
+secrets/credentials.txt
