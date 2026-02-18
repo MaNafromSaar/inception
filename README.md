@@ -28,69 +28,46 @@ All services are containerized from custom Dockerfiles, emphasizing security bes
 
 ## Getting Started
 
-Make sure you have received the credentials for the project. The `.env` file is essential for configuring the services and should not be committed to version control. Ask evaluee in case of any question on how to obtain the credentials.
+### VM Setup Options
 
-### Method 1: Automated VM Setup (Recommended)
+This project provides **multiple ways** to set up your development VM. See [VM_SETUP_GUIDE.md](./VM_SETUP_GUIDE.md) for complete details.
 
-This project includes a script to automate the entire setup of a fresh Debian VM. This is the fastest and most reliable way to get started.
+**Quick overview:**
+1. **Fully Automated** - Preseed file, zero interaction (~10 min)
+2. **Semi-Automated** - Script creates VM, manual Debian install with step-by-step guide (~15 min)
+3. **Manual** - Complete control over every step
+4. **Pre-built Template** - Import ready-made VM for evaluations (2 min)
 
-1.  **On the new VM, log in as `root`** (`su -`).
-2.  **Get the setup script onto the VM.** You can either clone the whole repository as root, or just copy the content of `setup_vm.sh` into a new file.
-    ```bash
-    # Option A: Clone the repo (you might need to install git first: apt-get update && apt-get install git)
-    git clone https://github.com/MaNafromSaar/inception.git
-    cd inception
-    chmod +x setup_vm.sh
-    ./setup_vm.sh
-    ```
-3.  **Follow the script prompts.** It will ask for the regular username to grant `sudo` privileges to.
-4.  **Log out from `root` and log back in as your regular user.** The VM is now fully prepared. You can proceed to clone the repo (if you haven't already) and run `make`.
+**Recommended for first-time setup:** Method 2 (Semi-Automated)
 
-### Method 2: Manual Installation
+### Quick Start (Assuming VM Ready)
 
-Follow these steps if you prefer to set up the environment manually.
-
-#### Prerequisites
-
-*   A user with `sudo` privileges.
-*   `git`
-*   `make` (from the `build-essential` package)
-*   Docker
-*   Docker Compose
-
-#### Installation & Usage
+Once you have a Debian VM with Docker installed (using any method above):
 
 1.  **Clone the Repository**
     ```bash
-    # If you haven't already, clone the project repository
-    git clone https://github.com/MaNafromSaar/inception.git/
+    git clone https://github.com/MaNafromSaar/inception.git
     cd inception
     ```
 
-2.  **Configuration**
-    -   Navigate to the `srcs/` directory.
-    -   Create a `.env` file by copying the example: `cp .env.example .env`
-    -   Edit `srcs/.env` to set your `DOMAIN_NAME`, secure database credentials, and unique WordPress salts.
-    > **Note:** The `.env.example` file is the only template provided for secrets. The original subject file is not included in this repository.
-    > **Warning:** The `.env` file contains sensitive information. It is included in `.gitignore` and should never be committed to version control.
-
+2.  **Configure Environment**
+    ```bash
+    # Copy credentials file (provided separately)
+    cp /path/to/credentials.txt srcs/.env
+    ```
+   
 3.  **Build and Run**
-    From the project's root directory, simply run the main `make` rule:
     ```bash
     make
     ```
-    This command will:
-    - Check for Docker and Docker Compose.
-    - Create the necessary data directories (`/home/yourlogin/data/...`).
-    - Build the container images.
-    - Launch all services in detached mode.
+   
+4.  **Access Services**
+    - WordPress: `https://mnaumann.42.fr` (or `https://localhost:8443` if using NAT)
+    - Admin panel: `https://mnaumann.42.fr/wp-admin`
 
-4.  **Access Your WordPress Site**
-    -   On your host machine (not the VM), edit your `/etc/hosts` file to map your domain to the VM's IP address. If running locally, use `127.0.0.1`.
-        ```
-        127.0.0.1 mnaumann.42.fr
-        ```
-    -   Open your browser and navigate to `https://mnaumann.42.fr`. You should be greeted by the WordPress installation screen.
+For detailed VM setup, see [VM_SETUP_GUIDE.md](./VM_SETUP_GUIDE.md).
+
+---
 
 ## Makefile Commands
 

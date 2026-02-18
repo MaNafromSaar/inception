@@ -1,0 +1,5 @@
+# imgsetc directory - large binary files for evaluation
+inception-base-template.ova
+debian-*.iso
+*.ova
+*.iso

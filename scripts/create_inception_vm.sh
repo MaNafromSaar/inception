@@ -20,7 +20,8 @@ VRAM_MB=16              # Video RAM (minimal, headless)
 DISK_PATH="${HOME}/VirtualBox VMs/${VM_NAME}/${VM_NAME}.vdi"
 
 # Network Settings
-NETWORK_TYPE="bridged"  # Options: "bridged" or "nat"
+NETWORK_TYPE="nat"      # Options: "bridged" or "nat"
+                        # NAT is more reliable and doesn't require kernel modules
 # If using bridged, specify adapter (e.g., "en0", "eth0", "wlan0")
 HOST_ADAPTER=""         # Leave empty for auto-detection
 
@@ -222,6 +223,7 @@ echo "  1. Start the VM: VBoxManage startvm \"${VM_NAME}\" --type gui"
 echo "     (Or use VirtualBox GUI and click 'Start')"
 echo ""
 echo "  2. Install Debian 11 (follow the installer):"
+echo "     - avoid using GUI installation: select 'Install' rather than 'Graphical Install'"
 echo "     - Hostname: inception"
 echo "     - Domain: (leave blank)"
 echo "     - Set root password"
