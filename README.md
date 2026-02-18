@@ -1,3 +1,5 @@
+_This project has been created as part of the 42 curriculum by mnaumann_
+
 # Inception Project (42 School)
 
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
