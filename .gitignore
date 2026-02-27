@@ -4,6 +4,9 @@ srcs/.env
 *.tar*
 *.gz
 git_history_cleanup.sh
+inception.pdf
+inception.md
+en.subject.pdf
 
 # Ignore all files in the srcs directory except for .env
 secrets/credentials.txt
