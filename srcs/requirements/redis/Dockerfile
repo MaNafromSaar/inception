@@ -1,10 +1,21 @@
-FROM redis:7.0-alpine
+FROM alpine:3.20
 
-# Copy the Redis configuration file
-COPY ./conf/redis.conf /usr/local/etc/redis/redis.conf
+# Install Redis server
+RUN apk add --no-cache redis
 
-# The CMD will be executed when the container starts.
-# It starts the Redis server using the specified config file and
-# overrides the password with the value from the environment variable.
-# We use the shell form to ensure the environment variable is substituted.
-CMD ["/bin/sh", "-c", "redis-server /usr/local/etc/redis/redis.conf --requirepass \"$REDIS_PASSWORD\""]
+# Copy custom Redis configuration
+COPY ./conf/redis.conf /etc/redis/redis.conf
+
+# Copy entrypoint and healthcheck scripts
+COPY ./tools/redis_entrypoint.sh /usr/local/bin/redis_entrypoint.sh
+COPY ./tools/healthcheck.sh /usr/local/bin/healthcheck.sh
+RUN chmod +x /usr/local/bin/redis_entrypoint.sh /usr/local/bin/healthcheck.sh
+
+# Create data directory for persistence
+RUN mkdir -p /data && chown redis:redis /data
+WORKDIR /data
+
+EXPOSE 6379
+
+ENTRYPOINT ["/usr/local/bin/redis_entrypoint.sh"]
+CMD ["redis-server", "/etc/redis/redis.conf"]

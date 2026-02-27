@@ -1,5 +1,5 @@
 services:
-  # Nginx Service (Reverse Proxy)
+  # ─── Nginx (Reverse Proxy + TLS termination) ────────────────────────
   nginx:
     image: inception-nginx
     container_name: inception-nginx
@@ -17,11 +17,11 @@ services:
     depends_on:
       wordpress:
         condition: service_healthy
-    restart: unless-stopped
+    restart: always
     env_file:
       - .env
 
-  # WordPress Service
+  # ─── WordPress + PHP-FPM ────────────────────────────────────────────
   wordpress:
     image: inception-wordpress
     container_name: inception-wordpress
@@ -37,7 +37,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    restart: unless-stopped
+    restart: always
     env_file:
       - .env
     healthcheck:
@@ -47,7 +47,7 @@ services:
       retries: 10
       start_period: 60s
 
-  # MariaDB Service
+  # ─── MariaDB ────────────────────────────────────────────────────────
   mariadb:
     image: inception-mariadb
     container_name: inception-mariadb
@@ -57,16 +57,15 @@ services:
       - inception_network
     volumes:
       - mariadb_data:/var/lib/mysql
-    restart: unless-stopped
+    restart: always
     healthcheck:
-      # Use the root user for the healthcheck, as the wordpress user may not exist yet.
-      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
 
-  # Redis Service
+  # ─── Redis (Bonus: cache) ──────────────────────────────────────────
   redis:
     image: inception-redis
     container_name: inception-redis
@@ -74,37 +73,33 @@ services:
     env_file: .env
     networks:
       - inception_network
-    restart: unless-stopped
+    restart: always
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
       interval: 10s
       timeout: 5s
       retries: 3
       start_period: 20s
 
-  # Adminer Service
+  # ─── Adminer (Bonus: DB management) ────────────────────────────────
   adminer:
+    image: inception-adminer
     container_name: inception-adminer
-    image: adminer
-    ports:
-      - "8080:8080"
+    build: ./requirements/adminer
     networks:
       - inception_network
-    restart: unless-stopped
+    restart: always
     depends_on:
       mariadb:
         condition: service_healthy
 
-  # FTP Service
+  # ─── FTP Server (Bonus: file access) ───────────────────────────────
   ftp:
     image: inception-ftp
     container_name: inception-ftp
     build:
       context: ./requirements/ftp
       dockerfile: Dockerfile
-      args:
-        FTP_USER: ${FTP_USER}
-        FTP_PASS: ${FTP_PASS}
     ports:
       - "20:20"
       - "21:21"
@@ -116,15 +111,17 @@ services:
     depends_on:
       wordpress:
         condition: service_healthy
-    restart: unless-stopped
+    restart: always
     env_file:
       - .env
 
+# ─── Networks ──────────────────────────────────────────────────────────
 networks:
   inception_network:
     driver: bridge
     name: inception_network
 
+# ─── Volumes ──────────────────────────────────────────────────────────
 volumes:
   wordpress_data:
     driver: local

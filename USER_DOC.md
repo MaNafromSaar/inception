@@ -33,7 +33,7 @@ The Inception project provides the following services:
 | Service | Purpose | Access |
 |---------|---------|--------|
 | **Redis** | Cache server for WordPress performance | Internal only |
-| **FTP Server** | File transfer for WordPress files | Port 21 (FTP), Passive ports 21100-21110 |
+| **FTP Server** | File transfer for WordPress files | Port 21 (FTP), Passive ports 21000-21010 |
 | **Adminer** | Web-based database management | Via NGINX at `https://adminer.mnaumann.42.fr` |
 | **Static Site** | Static HTML showcase website | Port 8081 at `http://static.mnaumann.42.fr:8081` |
 

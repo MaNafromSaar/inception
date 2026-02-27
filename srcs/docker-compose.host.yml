@@ -1,0 +1,17 @@
+# Override file for host-bind mode (42 subject compliant).
+# Usage: docker compose -f docker-compose.yml -f docker-compose.host.yml up -d
+# The Makefile activates this automatically with MODE=host.
+
+volumes:
+  wordpress_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /home/${LOGIN:-mnaumann}/data/wordpress
+      o: bind
+  mariadb_data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /home/${LOGIN:-mnaumann}/data/mariadb
+      o: bind

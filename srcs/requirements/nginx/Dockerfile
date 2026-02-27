@@ -1,4 +1,4 @@
-FROM debian:bullseye
+FROM debian:bookworm
 
 # Install Nginx, OpenSSL, and envsubst utility
 RUN apt-get update && apt-get install -y \
