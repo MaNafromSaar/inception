@@ -6,18 +6,16 @@ LOGIN ?= $(shell whoami)
 ENV_FILE = srcs/.env
 
 # --- Compose Configuration ---
-# This Makefile supports two modes for volume management:
-# 1. default (Docker-managed volumes): Portable, works well on WSL2. Run with `make`.
-# 2. host (Host-bind mounts): Uses /home/$(LOGIN)/data, as per the 42 subject. Run with `make up-host` or by adding `MODE=host` to any command.
+# Default: host-bind mounts at /home/$(LOGIN)/data (42 subject requirement).
+# The host-bind mount configuration is applied via docker-compose.host.yml,
+# which overrides the named volumes in docker-compose.yml with bind mounts.
+# For Docker-managed volumes (portable/WSL2 dev), run: make up-dev
 
-COMPOSE_BASE = LOGIN=$(LOGIN) docker compose -f srcs/docker-compose.yml --env-file srcs/.env
+# Host-bind mode is always active for the default targets.
+COMPOSE = LOGIN=$(LOGIN) docker compose -f srcs/docker-compose.yml -f srcs/docker-compose.host.yml --env-file srcs/.env
 
-# Conditionally add the host override file if MODE=host
-ifeq ($(MODE),host)
-	COMPOSE = $(COMPOSE_BASE) -f srcs/docker-compose.host.yml
-else
-	COMPOSE = $(COMPOSE_BASE)
-endif
+# Separate compose command without the host overlay, for development use.
+COMPOSE_DEV = LOGIN=$(LOGIN) docker compose -f srcs/docker-compose.yml --env-file srcs/.env
 
 # Define data directories for the host mode.
 DATA_DIR = /home/$(LOGIN)/data
@@ -36,20 +34,25 @@ DOCKER_COMPOSE = $(shell command -v docker-compose 2>/dev/null || echo 'docker c
 
 # --- Rules ---
 
-# Default target: Set up and run everything with Docker-managed volumes.
+# Default target: build and run with host-bind mounts (42 subject compliant).
 all: up
 
-# Build and start with Docker-managed volumes (default).
-up: env-check
+# Build and start with host-bind mounts (default, 42 subject compliant).
+up: env-check dirs-check
 	@echo "---> (up) Starting the main build command..."
 	@$(COMPOSE) up --build -d
 	@echo "---> (up) Main build command finished."
-	@echo "$(GREEN)Services started. Use 'make status' to check them.$(NC)"
+	@echo "$(GREEN)Services started with host-bind mounts in $(DATA_DIR). Use 'make status' to check them.$(NC)"
 
-# Build and start with host-bind mounts (42 subject compliant).
-up-host: export MODE=host
-up-host: dirs-check up
-	@echo "$(GREEN)Services started with host-bind mounts in $(DATA_DIR).$(NC)"
+# Build and start with Docker-managed volumes (portable, for development/WSL2).
+up-dev: env-check
+	@echo "---> (up-dev) Starting with Docker-managed volumes..."
+	@$(COMPOSE_DEV) up --build -d
+	@echo "---> (up-dev) Build command finished."
+	@echo "$(GREEN)Services started with Docker-managed volumes. Use 'make status' to check them.$(NC)"
+
+# Alias for backwards compatibility.
+up-host: up
 
 # Check for .env file. If it doesn't exist, copy from the example.
 # This no longer causes make to exit, allowing the process to continue.
@@ -62,17 +65,17 @@ env-check:
 	fi
 	@echo "---> (env-check) Finished checking for .env file."
 
-# Check if data directories exist (only needed for host mode).
+# Check if data directories exist (created automatically by the default target).
 dirs-check:
-	@echo "$(BLUE)Checking host data directories for MODE=host...$(NC)"
+	@echo "$(BLUE)Ensuring host data directories exist at $(DATA_DIR)...$(NC)"
 	@mkdir -p $(WP_DATA_DIR)
 	@mkdir -p $(DB_DATA_DIR)
 	@echo "$(GREEN)Host data directories are ready.$(NC)"
 
-# Stop all services
-down: ## Stop and remove containers, networks, and volumes
-	@echo "$(YELLOW)Stopping all services, networks, and volumes...$(NC)"
-	@echo "$(YELLOW)Note: This will remove Docker-managed volumes if you are not in host mode.$(NC)"
+# Stop all services (host mode)
+down: ## Stop and remove containers, networks
+	@echo "$(YELLOW)Stopping all services and networks...$(NC)"
+	@echo "$(YELLOW)Note: Host data directories at $(DATA_DIR) are preserved. Use 'make fclean' to remove them.$(NC)"
 	@$(COMPOSE) down -v
 
 # Clean: Stop and remove containers, networks, and volumes defined in compose
@@ -81,29 +84,25 @@ clean:
 	@$(COMPOSE) down -v --remove-orphans
 	@echo "$(GREEN)Cleaned containers and networks.$(NC)"
 
-# Fclean: Clean + remove images built by compose + prune system
-# In host mode, this will also offer to remove the host data directories.
+# Fclean: Clean + remove images built by compose + prune system + remove host data dirs
 fclean: clean
 	@echo "$(BLUE)Removing images built by compose...$(NC)"
 	@$(COMPOSE) down --rmi all
 	@echo "$(BLUE)Pruning Docker system...$(NC)"
 	@docker system prune -af
-	@if [ "$(MODE)" = "host" ]; then \
-		echo "$(YELLOW)MODE is host. Do you want to remove the host data directories? [y/N] $(NC)"; \
-		read -r answer; \
-		if [ "$$answer" = "y" ]; then \
-			echo "$(RED)Removing $(DATA_DIR)...$(NC)"; \
-			rm -rf $(DATA_DIR); \
-		fi; \
+	@echo "$(YELLOW)Do you want to remove the host data directories at $(DATA_DIR)? [y/N] $(NC)"; \
+	read -r answer; \
+	if [ "$$answer" = "y" ]; then \
+		echo "$(RED)Removing $(DATA_DIR)...$(NC)"; \
+		rm -rf $(DATA_DIR); \
 	fi
 	@echo "$(GREEN)Full cleanup completed.$(NC)"
 
-# Re: Full rebuild and restart (default mode)
+# Re: Full rebuild and restart
 re: fclean up
 
-# Re-host: Full rebuild and restart in host mode
-re-host: export MODE=host
-re-host: fclean up-host
+# Re-host: alias for re (kept for backwards compatibility)
+re-host: re
 
 # Status check
 status:
@@ -149,5 +148,5 @@ DOMAIN_NAME = $(shell grep DOMAIN_NAME srcs/.env | cut -d '=' -f2)
 # List of domains to add to /etc/hosts
 DOMAINS = www.${DOMAIN_NAME} ${DOMAIN_NAME} adminer.${DOMAIN_NAME} static.${DOMAIN_NAME}
 
-.PHONY: all up up-host down clean fclean re re-host logs logs-nginx logs-wordpress logs-mariadb logs-redis logs-adminer env-check dirs-check status test ssl
+.PHONY: all up up-dev up-host down clean fclean re re-host logs logs-nginx logs-wordpress logs-mariadb logs-redis logs-adminer env-check dirs-check status test ssl
 
