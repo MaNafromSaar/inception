@@ -12,10 +12,10 @@ ENV_FILE = srcs/.env
 # For Docker-managed volumes (portable/WSL2 dev), run: make up-dev
 
 # Host-bind mode is always active for the default targets.
-COMPOSE = LOGIN=$(LOGIN) docker compose -f srcs/docker-compose.yml -f srcs/docker-compose.host.yml --env-file srcs/.env
+COMPOSE = LOGIN=$(LOGIN) docker compose --file srcs/docker-compose.yml --file srcs/docker-compose.host.yml --env-file srcs/.env
 
 # Separate compose command without the host overlay, for development use.
-COMPOSE_DEV = LOGIN=$(LOGIN) docker compose -f srcs/docker-compose.yml --env-file srcs/.env
+COMPOSE_DEV = LOGIN=$(LOGIN) docker compose --file srcs/docker-compose.yml --env-file srcs/.env
 
 # Define data directories for the host mode.
 DATA_DIR = /home/$(LOGIN)/data
