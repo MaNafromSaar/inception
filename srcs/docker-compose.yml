@@ -124,14 +124,10 @@ networks:
     name: inception_network
 
 # ─── Volumes ──────────────────────────────────────────────────────────
+# Default mode: Docker-managed volumes (portable, works on any VM).
+# For host-bind mounts (42 subject), run: make up-host
 volumes:
   wordpress_data:
     driver: local
-      type: none
-      device: /home/mnaumann/data/web
-      o: bind
   mariadb_data:
     driver: local
-      type: none
-      device: /home/mnaumann/data/mysql
-      o: bind

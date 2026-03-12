@@ -8,5 +8,5 @@ inception.pdf
 inception.md
 en.subject.pdf
 
-# Ignore all files in the srcs directory except for .env
+# Ignore credentials file (contains passwords, never commit)
 secrets/credentials.txt
