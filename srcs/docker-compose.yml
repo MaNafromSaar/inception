@@ -125,5 +125,11 @@ networks:
 volumes:
   wordpress_data:
     driver: local
+      type: none
+      device: /home/mnaumann/data/web
+      o: bind
   mariadb_data:
     driver: local
+      type: none
+      device: /home/mnaumann/data/mysql
+      o: bind
