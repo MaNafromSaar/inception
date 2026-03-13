@@ -159,6 +159,58 @@ hostname -I
 - Password: See credentials section
 - Database: `wordpress`
 
+### MariaDB - Access from Command Line
+
+**Open a shell on MariaDB container:**
+```bash
+docker exec -it inception-mariadb /bin/bash
+```
+
+**Connect to MySQL:**
+```bash
+mysql -u root -p
+# Enter password from MYSQL_ROOT_PASSWORD in srcs/.env
+```
+
+**Check Database for Entries:**
+
+Once logged into MySQL, you can run these commands:
+
+```sql
+-- Show all databases
+SHOW DATABASES;
+
+-- Use the WordPress database
+USE wordpress;
+
+-- Show all tables in the database
+SHOW TABLES;
+
+-- View WordPress users
+SELECT ID, user_login, user_email, user_registered FROM wp_users;
+
+-- View posts
+SELECT ID, post_title, post_date, post_status FROM wp_posts WHERE post_type = 'post';
+
+-- Check database size
+SELECT 
+    table_schema AS 'Database',
+    ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS 'Size (MB)'
+FROM information_schema.tables
+WHERE table_schema = 'wordpress'
+GROUP BY table_schema;
+
+-- Exit MySQL
+EXIT;
+```
+
+**Quick Database Check (One-liner):**
+```bash
+docker exec -it inception-mariadb mysql -u root -p<password> -e "USE wordpress; SHOW TABLES;"
+```
+
+Replace `<password>` with your actual `MYSQL_ROOT_PASSWORD` from `.env`.
+
 ### Static Website
 
 **URL**: `http://static.mnaumann.42.fr:8081`
@@ -242,7 +294,7 @@ REDIS_PORT=6379
 
 1. **Never commit** the `.env` file to Git
 2. **Change default passwords** before deployment
-3. **Use strong passwords** (12+ characters, mixed case, numbers, symbols)
+3. **Use strong passwords** (12+ characters, mixed case, numbers, symbols - not crucial for this sandboxed project)
 4. **Share credentials securely** (use encrypted channels or password managers)
 5. **Rotate passwords periodically** in production environments
 
@@ -489,6 +541,6 @@ For technical issues or questions:
 
 ---
 
-**Last Updated**: February 2026  
+**Last Updated**: March 2026  
 **Project**: Inception (42 School)  
 **Author**: mnaumann
