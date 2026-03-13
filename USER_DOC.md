@@ -177,22 +177,18 @@ mysql -u root -p
 Once logged into MySQL, you can run these commands:
 
 ```sql
--- Show all databases
+
 SHOW DATABASES;
 
--- Use the WordPress database
 USE wordpress;
 
--- Show all tables in the database
 SHOW TABLES;
 
--- View WordPress users
 SELECT ID, user_login, user_email, user_registered FROM wp_users;
 
--- View posts
 SELECT ID, post_title, post_date, post_status FROM wp_posts WHERE post_type = 'post';
 
--- Check database size
+
 SELECT 
     table_schema AS 'Database',
     ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS 'Size (MB)'
@@ -200,7 +196,7 @@ FROM information_schema.tables
 WHERE table_schema = 'wordpress'
 GROUP BY table_schema;
 
--- Exit MySQL
+
 EXIT;
 ```
 
